@@ -29,6 +29,7 @@ import json
 import mimetypes
 import os
 import re
+import sqlite3
 import tempfile
 from pathlib import Path
 
@@ -390,6 +391,24 @@ _VERDICT_EMOJI = {
     "APPROVE": "✅", "APPROVE_WITH_CONDITIONS": "⚠️",
     "REJECT": "❌", "HUMAN_REVIEW_REQUIRED": "🔍",
 }
+_VERDICT_COLORS = {
+    "APPROVE":                 ("#dcfce7", "#15803d", "#86efac"),
+    "APPROVE_WITH_CONDITIONS": ("#fef9c3", "#854d0e", "#fde047"),
+    "REJECT":                  ("#fee2e2", "#991b1b", "#fca5a5"),
+    "HUMAN_REVIEW_REQUIRED":   ("#ede9fe", "#5b21b6", "#c4b5fd"),
+}
+
+
+def _verdict_badge(verdict: str) -> str:
+    bg, fg, border = _VERDICT_COLORS.get(verdict, ("#f1f5f9", "#334155", "#cbd5e1"))
+    emoji = _VERDICT_EMOJI.get(verdict, "❓")
+    label = verdict.replace("_", " ")
+    return (
+        f'<div style="display:inline-block;background:{bg};color:{fg};border:2px solid {border};'
+        f'border-radius:8px;padding:10px 22px;font-weight:bold;font-size:1.05rem;margin:6px 0">'
+        f'{emoji}&nbsp;&nbsp;{label}</div>'
+    )
+
 
 def _make_card(result: dict, source_labels: list, comp_b: dict, alt_num: int = 0) -> str:
     verdict = result.get("recommendation", "HUMAN_REVIEW_REQUIRED")
@@ -466,7 +485,9 @@ def submit_handler(
 ):
     if not ing_a.strip() or not ing_b.strip():
         return (
-            "**Please enter at least Ingredient A and Ingredient B names.**",
+            "**Please enter Ingredient A and Ingredient B names.**  \n"
+            "*For an overall supply chain health check, use the **📊 General Assessment** tab.*",
+            "<div style='color:#64748b;font-size:0.9rem;padding:8px 0'>Awaiting evaluation…</div>",
             gr.update(interactive=False), gr.update(interactive=False),
             gr.update(interactive=False), state,
         )
@@ -502,9 +523,12 @@ def submit_handler(
         "last_verdict": result.get("recommendation"),
     }
 
-    card = _make_card(result, labels, comp_b)
+    verdict = result.get("recommendation", "HUMAN_REVIEW_REQUIRED")
+    card  = _make_card(result, labels, comp_b)
+    badge = _verdict_badge(verdict)
     return (
         card,
+        badge,
         gr.update(interactive=True),
         gr.update(interactive=True),
         gr.update(interactive=True),
@@ -557,8 +581,10 @@ def alternative_handler(state):
 
     new_state = {**state, "result": result, "docs": docs,
                  "alt_count": alt_num, "last_verdict": result.get("recommendation")}
-    card = _make_card(result, state["labels"], state["comp_b"], alt_num=alt_num)
-    return card, new_state
+    verdict = result.get("recommendation", "HUMAN_REVIEW_REQUIRED")
+    card  = _make_card(result, state["labels"], state["comp_b"], alt_num=alt_num)
+    badge = _verdict_badge(verdict)
+    return card, badge, new_state
 
 
 def reject_handler(state):
@@ -583,102 +609,409 @@ def reject_handler(state):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# General Assessment — DB, Charts, Gemini Health Report
+# ─────────────────────────────────────────────────────────────────────────────
+
+_DB_PATH = Path(__file__).parent / "DB" / "db.sqlite"
+
+_ASSESSMENT_PROMPT = """\
+You are Agnes, an AI supply chain analyst for the CPG industry.
+Analyze the supply chain statistics below and produce a health assessment in valid JSON only.
+
+OUTPUT FORMAT (no markdown fences):
+{
+  "health_score": <float 1.0-10.0>,
+  "headline": "<one concise sentence summarising the biggest finding>",
+  "top_opportunities": [
+    "<opportunity 1 with specific ingredient name and estimated impact>",
+    "<opportunity 2>",
+    "<opportunity 3>"
+  ],
+  "critical_risks": ["<risk 1>", "<risk 2>"],
+  "quick_wins": ["<actionable win 1>", "<actionable win 2>", "<actionable win 3>"],
+  "strategic_recommendation": "<2-3 sentence strategic narrative>"
+}
+
+Scoring guide: 9-10 excellent | 7-8 good | 5-6 moderate | 3-4 poor | 1-2 critical\
+"""
+
+
+def _load_db_stats() -> dict:
+    conn = sqlite3.connect(str(_DB_PATH))
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM Company")
+    n_companies = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM Supplier")
+    n_suppliers = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM Product WHERE Type='raw-material'")
+    n_raw = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM BOM_Component")
+    n_bom = cur.fetchone()[0]
+
+    cur.execute("""
+        WITH ing AS (
+          SELECT SUBSTR(SKU, INSTR(SUBSTR(SKU,4),'-')+4,
+                 LENGTH(SKU)-INSTR(SUBSTR(SKU,4),'-')-3-9) AS ingredient, Id
+          FROM Product WHERE Type='raw-material'
+        )
+        SELECT ingredient, COUNT(*) AS sku_count
+        FROM ing GROUP BY ingredient ORDER BY sku_count DESC LIMIT 12
+    """)
+    fragmented = cur.fetchall()
+
+    cur.execute("""
+        SELECT s.Name, COUNT(DISTINCT bc.BOMId) AS bom_count
+        FROM Supplier s
+        JOIN Supplier_Product sp ON s.Id = sp.SupplierId
+        JOIN BOM_Component bc ON bc.ConsumedProductId = sp.ProductId
+        GROUP BY s.Id ORDER BY bom_count DESC LIMIT 10
+    """)
+    top_suppliers = cur.fetchall()
+
+    cur.execute("""
+        SELECT COUNT(*) FROM (
+          SELECT ProductId FROM Supplier_Product
+          JOIN Product ON Product.Id = Supplier_Product.ProductId
+          WHERE Product.Type='raw-material'
+          GROUP BY ProductId HAVING COUNT(SupplierId) = 1
+        )
+    """)
+    single_supplier = cur.fetchone()[0]
+    conn.close()
+
+    return {
+        "n_companies": n_companies, "n_suppliers": n_suppliers,
+        "n_raw_materials": n_raw, "n_bom_links": n_bom,
+        "fragmented": fragmented, "top_suppliers": top_suppliers,
+        "single_supplier_skus": single_supplier,
+    }
+
+
+def _build_charts(stats: dict):
+    import plotly.graph_objects as go
+
+    frag = stats["fragmented"]
+    ing_names = [r[0].replace("-", " ").title() for r in frag]
+    ing_counts = [r[1] for r in frag]
+    fig1 = go.Figure(go.Bar(
+        x=ing_counts, y=ing_names, orientation="h",
+        marker_color="#3b82f6", text=ing_counts, textposition="outside",
+    ))
+    fig1.update_layout(
+        title="Most Fragmented Ingredients (duplicate SKUs across companies)",
+        xaxis_title="Number of separate SKUs",
+        yaxis=dict(autorange="reversed"),
+        height=420, margin=dict(l=220, r=60, t=50, b=40),
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+    )
+
+    sup_data = stats["top_suppliers"]
+    sup_names  = [r[0] for r in sup_data]
+    sup_counts = [r[1] for r in sup_data]
+    colors = ["#ef4444" if b > 100 else "#f97316" if b > 60 else "#3b82f6" for b in sup_counts]
+    fig2 = go.Figure(go.Bar(
+        x=sup_counts, y=sup_names, orientation="h",
+        marker_color=colors, text=sup_counts, textposition="outside",
+    ))
+    fig2.update_layout(
+        title="Top Suppliers by BOM Coverage  (🔴 > 100 BOMs = concentration risk)",
+        xaxis_title="Number of BOMs supplied",
+        yaxis=dict(autorange="reversed"),
+        height=380, margin=dict(l=180, r=60, t=50, b=40),
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig1, fig2
+
+
+def _build_kpi_html(stats: dict) -> str:
+    cards = [
+        ("🏢", stats["n_companies"],    "CPG Companies"),
+        ("🏭", stats["n_suppliers"],    "Suppliers"),
+        ("🧪", stats["n_raw_materials"],"Raw-Material SKUs"),
+        ("🔗", stats["n_bom_links"],    "BOM Component Links"),
+    ]
+    items = "".join(
+        f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;'
+        f'padding:18px;text-align:center">'
+        f'<div style="font-size:1.8rem">{icon}</div>'
+        f'<div style="font-size:2rem;font-weight:bold;color:#1e40af">{num}</div>'
+        f'<div style="font-size:0.82rem;color:#64748b;margin-top:4px">{label}</div>'
+        f'</div>'
+        for icon, num, label in cards
+    )
+    return (
+        f'<div style="display:grid;grid-template-columns:repeat(4,1fr);'
+        f'gap:12px;margin-bottom:8px">{items}</div>'
+    )
+
+
+def _generate_health_report(stats: dict) -> dict:
+    top_frags = "\n".join(f"  - {r[0]}: {r[1]} SKUs" for r in stats["fragmented"][:6])
+    top_sups  = "\n".join(f"  - {r[0]}: {r[1]} BOMs" for r in stats["top_suppliers"][:5])
+    context = (
+        f"Supply Chain Statistics:\n"
+        f"- {stats['n_companies']} CPG companies, {stats['n_suppliers']} suppliers\n"
+        f"- {stats['n_raw_materials']} raw-material SKUs "
+        f"({stats['single_supplier_skus']} sourced from only 1 supplier)\n"
+        f"- {stats['n_bom_links']} BOM component links\n\n"
+        f"Top fragmented ingredients (most duplicate SKUs across companies):\n{top_frags}\n\n"
+        f"Top suppliers by BOM coverage:\n{top_sups}\n\n"
+        f"Core problem: identical ingredients are purchased under separate company-specific "
+        f"SKUs, preventing volume consolidation and increasing compliance risk.\n\n"
+        + _ASSESSMENT_PROMPT
+    )
+    try:
+        response = client.models.generate_content(
+            model=_MODEL,
+            contents=context,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json", temperature=0.3,
+            ),
+        )
+        return json.loads(response.text.strip())
+    except Exception as exc:
+        return {
+            "health_score": 5.0,
+            "headline": f"Assessment unavailable — {exc}",
+            "top_opportunities": ["Check GEMINI_API_KEY in .env and restart."],
+            "critical_risks": [str(exc)],
+            "quick_wins": [],
+            "strategic_recommendation": "Unable to generate assessment.",
+        }
+
+
+def _render_health_card(report: dict, stats: dict) -> str:
+    score = float(report.get("health_score", 5.0))
+    gauge = "🔴" if score < 4 else "🟡" if score < 7 else "🟢"
+    lines = [
+        f"## {gauge} Supply Chain Health Score: **{score:.1f} / 10**",
+        "",
+        f"**{report.get('headline', '')}**",
+        "",
+        f"*Based on {stats['n_companies']} companies · {stats['n_suppliers']} suppliers · "
+        f"{stats['n_raw_materials']} raw-material SKUs · "
+        f"{stats['single_supplier_skus']} single-source SKUs*",
+        "",
+        "---",
+        "",
+        "### 🎯 Top Consolidation Opportunities",
+    ]
+    for opp in report.get("top_opportunities", []):
+        lines.append(f"- {opp}")
+    lines += ["", "### ⚠️ Critical Risks"]
+    for risk in report.get("critical_risks", []):
+        lines.append(f"- {risk}")
+    lines += ["", "### 💡 Quick Wins"]
+    for win in report.get("quick_wins", []):
+        lines.append(f"- {win}")
+    lines += [
+        "", "---", "",
+        f"**Strategic Recommendation:** {report.get('strategic_recommendation', '')}",
+    ]
+    return "\n".join(lines)
+
+
+def assessment_handler():
+    try:
+        stats = _load_db_stats()
+    except Exception as exc:
+        err = f"**Database error:** {exc}"
+        return err, None, None, err
+    kpi_html   = _build_kpi_html(stats)
+    fig1, fig2 = _build_charts(stats)
+    report     = _generate_health_report(stats)
+    report_md  = _render_health_card(report, stats)
+    return kpi_html, fig1, fig2, report_md
+
+
+def _history_stats_html() -> str:
+    path = Path("KB/decisions.json")
+    if not path.exists():
+        return "<p style='color:#94a3b8'>No decisions recorded yet.</p>"
+    try:
+        decisions = json.loads(path.read_text())
+        total = len(decisions)
+        if total == 0:
+            return "<p style='color:#94a3b8'>No decisions recorded yet.</p>"
+        approved = sum(1 for d in decisions if d.get("verdict") in
+                       ("APPROVE", "APPROVE_WITH_CONDITIONS"))
+        rejected = sum(1 for d in decisions if d.get("verdict") == "REJECT")
+        avg_conf = sum(d.get("confidence", 0) for d in decisions) / total
+        def _kpi(num, label, color="#1e40af"):
+            return (
+                f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;'
+                f'padding:14px 10px;text-align:center;flex:1">'
+                f'<div style="font-size:1.8rem;font-weight:bold;color:{color}">{num}</div>'
+                f'<div style="font-size:0.8rem;color:#64748b;margin-top:2px">{label}</div>'
+                f'</div>'
+            )
+        return (
+            f'<div style="display:flex;gap:12px;margin-bottom:14px">'
+            + _kpi(total,          "Total Decisions")
+            + _kpi(approved,       "Approved",   "#15803d")
+            + _kpi(rejected,       "Rejected",   "#dc2626")
+            + _kpi(f"{avg_conf:.0%}", "Avg Confidence")
+            + "</div>"
+        )
+    except Exception:
+        return "<p style='color:#94a3b8'>Error loading history.</p>"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Gradio UI
 # ─────────────────────────────────────────────────────────────────────────────
 
 _CSS = """
-.recommendation-card { font-size: 0.95rem; line-height: 1.6; }
+/* ── Agnes UI v2 ── */
+.recommendation-card { font-size: 0.95rem; line-height: 1.7; }
 .status-ok  { color: #16a34a; font-weight: bold; }
 .status-err { color: #dc2626; font-weight: bold; }
+footer { display: none !important; }
+.tab-nav button { font-size: 1rem; font-weight: 600; padding: 10px 20px; }
 """
 
-with gr.Blocks(
-    title="Agnes — Multimodal Compliance Evaluator",
-) as demo:
+_THEME = gr.themes.Base(
+    primary_hue=gr.themes.colors.blue,
+    neutral_hue=gr.themes.colors.slate,
+    font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "sans-serif"],
+).set(
+    button_primary_background_fill="#2563eb",
+    button_primary_background_fill_hover="#1d4ed8",
+    block_label_text_weight="600",
+)
 
-    gr.Markdown(
-        "# Agnes 2.0 — Multimodal Compliance Evaluator\n"
-        "Enter ingredient details, attach any combination of **image · audio · video · PDF · URL**, "
-        "then click **Evaluate**. Agnes extracts compliance data from all inputs and "
-        "recommends whether the substitution is safe. Confirm or request alternatives before saving."
+with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
+
+    gr.HTML(
+        '<div style="padding:18px 0 10px;border-bottom:1px solid #e2e8f0;margin-bottom:16px">'
+        '<h1 style="margin:0;font-size:1.6rem;font-weight:700;color:#1e293b">'
+        '🧬 Agnes 2.0 — Supply Chain Intelligence</h1>'
+        '<p style="margin:4px 0 0;color:#64748b;font-size:0.92rem">'
+        'Multimodal compliance evaluation · RAG-augmented · Gemini Flash</p>'
+        '</div>'
     )
 
     eval_state = gr.State(None)
 
-    with gr.Row():
-        # ── Left column: inputs ───────────────────────────────────────────
-        with gr.Column(scale=1):
-            gr.Markdown("### Ingredient A — Current (baseline)")
-            ing_a = gr.Textbox(label="Ingredient A name", placeholder="vitamin-d3-cholecalciferol")
-            sup_a = gr.Textbox(label="Current supplier",  placeholder="Prinova USA")
+    with gr.Tabs(elem_classes=["tab-nav"]):
 
-            gr.Markdown("### Ingredient B — Proposed substitute")
-            ing_b = gr.Textbox(label="Ingredient B name", placeholder="vitamin-d3-cholecalciferol")
-            sup_b = gr.Textbox(label="Proposed supplier", placeholder="PureBulk")
+        # ══════════════════════════════════════════════════════════════════
+        # TAB 1 — Evaluate Substitution
+        # ══════════════════════════════════════════════════════════════════
+        with gr.TabItem("🔍  Evaluate Substitution"):
+            with gr.Row():
+                # ── Left: inputs ─────────────────────────────────────────
+                with gr.Column(scale=1):
+                    gr.Markdown("#### Ingredient A — Current (baseline)")
+                    ing_a = gr.Textbox(label="Ingredient A name",
+                                       placeholder="vitamin-d3-cholecalciferol")
+                    sup_a = gr.Textbox(label="Current supplier",
+                                       placeholder="Prinova USA")
 
-            gr.Markdown("### Supporting Evidence *(all optional)*")
-            notes = gr.Textbox(
-                label="Notes / URLs",
-                placeholder=(
-                    "Free-form notes, or paste one or more URLs:\n"
-                    "https://supplier.com/product-page\n"
-                    "https://cdn.example.com/coa.pdf\n"
-                    "https://cdn.example.com/coa-image.png"
-                ),
-                lines=4,
+                    gr.Markdown("#### Ingredient B — Proposed substitute")
+                    ing_b = gr.Textbox(label="Ingredient B name",
+                                       placeholder="vitamin-d3-cholecalciferol")
+                    sup_b = gr.Textbox(label="Proposed supplier",
+                                       placeholder="PureBulk")
+
+                    with gr.Accordion("📎 Supporting Evidence (all optional)", open=False):
+                        notes = gr.Textbox(
+                            label="Notes / URLs",
+                            placeholder=(
+                                "Free-form notes, or paste URLs:\n"
+                                "https://supplier.com/product-page\n"
+                                "https://example.com/coa.pdf"
+                            ),
+                            lines=3,
+                        )
+                        coa_image  = gr.Image(label="CoA Image (PNG/JPG)",  type="filepath")
+                        audio_file = gr.Audio(label="Audio Note (MP3/WAV)", type="filepath")
+                        video_file = gr.Video(label="Video (facility/demo)")
+                        pdf_file   = gr.File(label="PDF Document",          file_types=[".pdf"])
+
+                    evaluate_btn = gr.Button("⚡ Evaluate", variant="primary", size="lg")
+
+                # ── Right: outputs ────────────────────────────────────────
+                with gr.Column(scale=1):
+                    gr.Markdown("#### Agnes Recommendation")
+                    verdict_badge = gr.HTML(
+                        '<div style="color:#94a3b8;font-size:0.9rem;padding:6px 0">'
+                        'Awaiting evaluation…</div>'
+                    )
+                    result_md = gr.Markdown(
+                        "*Fill in at least the ingredient names, then click Evaluate.*",
+                        elem_classes=["recommendation-card"],
+                    )
+                    with gr.Row():
+                        apply_btn  = gr.Button("✅ Apply & Save",     variant="primary",   interactive=False)
+                        alt_btn    = gr.Button("🔄 Show Alternative", variant="secondary",  interactive=False)
+                        reject_btn = gr.Button("❌ Reject All",        variant="stop",       interactive=False)
+                    status_md = gr.Markdown("")
+
+        # ══════════════════════════════════════════════════════════════════
+        # TAB 2 — General Assessment
+        # ══════════════════════════════════════════════════════════════════
+        with gr.TabItem("📊  General Assessment"):
+            gr.Markdown(
+                "Run a full supply chain health check powered by live DB analytics and "
+                "Gemini AI — no inputs required."
             )
-            coa_image  = gr.Image(label="CoA Image (PNG/JPG)",     type="filepath")
-            audio_file = gr.Audio(label="Audio Note (MP3/WAV)",    type="filepath")
-            video_file = gr.Video(label="Video (facility / demo)")
-            pdf_file   = gr.File(label="PDF Document",             file_types=[".pdf"])
+            assess_btn = gr.Button("🚀 Run General Assessment", variant="primary", size="lg")
 
-            evaluate_btn = gr.Button("Evaluate", variant="primary", size="lg")
-
-        # ── Right column: outputs ─────────────────────────────────────────
-        with gr.Column(scale=1):
-            gr.Markdown("### Agnes Recommendation")
-            result_md = gr.Markdown(
-                "*Submit an evaluation to see the recommendation here.*",
-                elem_classes=["recommendation-card"],
+            kpi_html = gr.HTML(
+                '<div style="color:#94a3b8;font-size:0.9rem;padding:12px 0">'
+                'Click the button above to analyse the supply chain database.</div>'
             )
 
             with gr.Row():
-                apply_btn = gr.Button("Apply & Save",     variant="primary",   interactive=False)
-                alt_btn   = gr.Button("Show Alternative", variant="secondary",  interactive=False)
-                reject_btn= gr.Button("Reject All",       variant="stop",       interactive=False)
+                chart1 = gr.Plot(label="Ingredient Fragmentation")
+                chart2 = gr.Plot(label="Supplier BOM Coverage")
 
-            status_md = gr.Markdown("")
+            health_md = gr.Markdown("")
 
-    with gr.Accordion("Decision History (last 10)", open=False):
-        history_table = gr.Dataframe(
-            headers=["Ingredient A", "Ingredient B", "Supplier B", "Verdict", "Confidence"],
-            value=_load_history(),
-            interactive=False,
-        )
+        # ══════════════════════════════════════════════════════════════════
+        # TAB 3 — Decision History
+        # ══════════════════════════════════════════════════════════════════
+        with gr.TabItem("📋  Decision History"):
+            history_stats = gr.HTML(_history_stats_html())
+            history_table = gr.Dataframe(
+                headers=["Ingredient A", "Ingredient B", "Supplier B", "Verdict", "Confidence"],
+                value=_load_history(),
+                interactive=False,
+            )
+            refresh_btn = gr.Button("🔄 Refresh", variant="secondary", size="sm")
 
     # ── Wire up handlers ──────────────────────────────────────────────────
     evaluate_btn.click(
         fn=submit_handler,
-        inputs=[ing_a, sup_a, ing_b, sup_b, notes, coa_image, audio_file, video_file, pdf_file, eval_state],
-        outputs=[result_md, apply_btn, alt_btn, reject_btn, eval_state],
+        inputs=[ing_a, sup_a, ing_b, sup_b, notes, coa_image,
+                audio_file, video_file, pdf_file, eval_state],
+        outputs=[result_md, verdict_badge, apply_btn, alt_btn, reject_btn, eval_state],
     )
-
     apply_btn.click(
         fn=apply_handler,
         inputs=[eval_state],
         outputs=[status_md, eval_state, history_table],
     )
-
     alt_btn.click(
         fn=alternative_handler,
         inputs=[eval_state],
-        outputs=[result_md, eval_state],
+        outputs=[result_md, verdict_badge, eval_state],
     )
-
     reject_btn.click(
         fn=reject_handler,
         inputs=[eval_state],
         outputs=[status_md, eval_state, history_table],
+    )
+    assess_btn.click(
+        fn=assessment_handler,
+        inputs=[],
+        outputs=[kpi_html, chart1, chart2, health_md],
+    )
+    refresh_btn.click(
+        fn=lambda: (_history_stats_html(), _load_history()),
+        inputs=[],
+        outputs=[history_stats, history_table],
     )
 
 
@@ -692,6 +1025,6 @@ if __name__ == "__main__":
         server_port=7860,
         share=False,
         show_error=True,
-        theme=gr.themes.Soft(primary_hue="blue"),
+        theme=_THEME,
         css=_CSS,
     )

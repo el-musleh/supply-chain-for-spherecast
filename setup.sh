@@ -38,6 +38,19 @@ echo "Injecting data science libraries and Gemini API..."
 pipx inject jupyterlab pandas matplotlib sqlite3-api google-genai ipywidgets
 pipx inject jupyter pandas matplotlib sqlite3-api google-genai ipywidgets
 
+# Install web scraping dependencies
+echo "Installing web scraping dependencies..."
+pipx inject jupyterlab playwright beautifulsoup4 requests pymupdf Pillow
+pipx inject jupyter playwright beautifulsoup4 requests pymupdf Pillow
+
+# Install Playwright browsers
+echo "Installing Playwright browsers ( Chromium )..."
+python3 -m playwright install chromium
+
+echo ""
+echo "Downloading ML models for offline RAG..."
+python3 download_models.py || echo "  (download_models.py not found, skipping)"
+
 # Remind contributor to set their API key
 echo ""
 if [ -z "$GEMINI_API_KEY" ]; then

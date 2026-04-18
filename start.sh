@@ -120,6 +120,7 @@ check_or_install "dotenv" "python-dotenv"
 check_or_install "google.genai" "google-genai"
 check_or_install "sentence_transformers"
 check_or_install "faiss"
+check_or_install "plotly"
 
 # KB / regulatory docs
 KB_FILE="$SCRIPT_DIR/KB/regulatory_docs.json"
