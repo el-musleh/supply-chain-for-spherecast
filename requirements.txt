@@ -3,4 +3,6 @@
 jupyter
 ipywidgets
 google-genai>=1.73.1
+pulp>=3.0.0
+scipy>=1.10.0
 
