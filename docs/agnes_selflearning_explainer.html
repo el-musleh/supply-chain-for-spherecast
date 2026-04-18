@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>How Agnes Gets Smarter Over Time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #080b14;
+    --surface:   #0f1420;
+    --card:      #141926;
+    --border:    #1e2540;
+    --indigo:    #6366f1;
+    --violet:    #8b5cf6;
+    --amber:     #f59e0b;
+    --emerald:   #10b981;
+    --rose:      #f43f5e;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --sub:       #94a3b8;
+    --glow-ind:  rgba(99,102,241,0.18);
+    --glow-vio:  rgba(139,92,246,0.18);
+    --glow-amb:  rgba(245,158,11,0.18);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    min-height: 100vh;
+  }
+
+  /* ── LAYOUT ── */
+  .page { max-width: 960px; margin: 0 auto; padding: 0 2rem 5rem; }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 5rem 0 4rem;
+    text-align: center;
+    position: relative;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 340px;
+    background: radial-gradient(ellipse at center,
+      rgba(99,102,241,0.22) 0%,
+      rgba(139,92,246,0.10) 45%,
+      transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--indigo);
+    background: rgba(99,102,241,0.12);
+    border: 1px solid rgba(99,102,241,0.30);
+    border-radius: 100px;
+    padding: 0.35rem 1rem;
+    margin-bottom: 1.6rem;
+  }
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-weight: 800;
+    line-height: 1.15;
+    background: linear-gradient(135deg, #e2e8f0 0%, #a5b4fc 50%, #c4b5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1.2rem;
+  }
+  .hero p {
+    font-size: 1.12rem;
+    color: var(--sub);
+    max-width: 580px;
+    margin: 0 auto;
+    font-weight: 300;
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.6rem;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+  .section-sub {
+    color: var(--sub);
+    font-size: 0.95rem;
+    font-weight: 300;
+    margin-bottom: 2rem;
+  }
+
+  section { margin-bottom: 4.5rem; }
+
+  /* ── MISCONCEPTION / REALITY ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+  .myth-card, .reality-card {
+    border-radius: 16px;
+    padding: 1.75rem;
+    border: 1px solid;
+  }
+  .myth-card {
+    background: rgba(244,63,94,0.06);
+    border-color: rgba(244,63,94,0.20);
+  }
+  .reality-card {
+    background: rgba(16,185,129,0.06);
+    border-color: rgba(16,185,129,0.22);
+  }
+  .card-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.8rem;
+  }
+  .card-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .myth-card .card-label  { color: var(--rose); }
+  .reality-card .card-label { color: var(--emerald); }
+  .myth-card h3, .reality-card h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.55rem;
+    color: var(--text);
+  }
+  .myth-card p, .reality-card p { font-size: 0.9rem; color: var(--sub); }
+
+  /* ── 3-STEP LOOP ── */
+  .loop-wrapper {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+  }
+
+  .step-card {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.75rem 1.5rem 1.5rem;
+    position: relative;
+    transition: border-color 0.25s;
+  }
+  .step-card:hover { border-color: var(--indigo); }
+
+  .step-connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .step-connector svg {
+    color: var(--indigo);
+    animation: pulse-arrow 2s ease-in-out infinite;
+  }
+  @keyframes pulse-arrow {
+    0%, 100% { opacity: 0.4; transform: translateX(0); }
+    50%       { opacity: 1;   transform: translateX(3px); }
+  }
+
+  .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem; height: 2rem;
+    border-radius: 50%;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+  .step-1 .step-number { background: var(--glow-ind); color: var(--indigo); border: 1px solid var(--indigo); }
+  .step-2 .step-number { background: var(--glow-amb); color: var(--amber);  border: 1px solid var(--amber);  }
+  .step-3 .step-number { background: var(--glow-vio); color: var(--violet); border: 1px solid var(--violet); }
+
+  .step-card h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+  .step-card p { font-size: 0.87rem; color: var(--sub); margin-bottom: 0.9rem; }
+
+  .code-chip {
+    display: inline-block;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.72rem;
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.25);
+    color: #a5b4fc;
+    border-radius: 6px;
+    padding: 0.2rem 0.55rem;
+  }
+  .code-chip.amber {
+    background: rgba(245,158,11,0.1);
+    border-color: rgba(245,158,11,0.25);
+    color: #fcd34d;
+  }
+  .code-chip.violet {
+    background: rgba(139,92,246,0.1);
+    border-color: rgba(139,92,246,0.25);
+    color: #c4b5fd;
+  }
+
+  /* loop-back arrow */
+  .loop-return {
+    margin-top: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .loop-return svg { animation: spin-back 3s ease-in-out infinite; }
+  @keyframes spin-back {
+    0%, 100% { transform: rotate(0deg); opacity: 0.5; }
+    50%       { transform: rotate(-15deg); opacity: 1; }
+  }
+
+  @media (max-width: 720px) {
+    .loop-wrapper { flex-direction: column; }
+    .step-connector { width: 100%; height: 2rem;
+      transform: rotate(90deg); }
+  }
+
+  /* ── HUMAN CALLOUT ── */
+  .human-callout {
+    background: linear-gradient(135deg,
+      rgba(245,158,11,0.07) 0%,
+      rgba(139,92,246,0.07) 100%);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 16px;
+    padding: 2rem;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+  .callout-icon {
+    font-size: 2.4rem;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .human-callout h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--amber);
+  }
+  .human-callout p { font-size: 0.92rem; color: var(--sub); margin-bottom: 0.9rem; }
+
+  .btn-group { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.35rem 1rem;
+    border-radius: 8px;
+    border: 1px solid;
+  }
+  .btn-apply   { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.40); color: var(--emerald); }
+  .btn-reject  { background: rgba(244,63,94,0.10);  border-color: rgba(244,63,94,0.35);  color: var(--rose); }
+  .btn-caption { font-size: 0.78rem; color: var(--muted); font-style: italic; margin-top: 0.35rem; }
+
+  /* ── WHY IT MATTERS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.2rem;
+  }
+  @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
+
+  .stat-tile {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.6rem 1.4rem;
+    text-align: center;
+    transition: border-color 0.25s, transform 0.25s;
+  }
+  .stat-tile:hover { border-color: var(--violet); transform: translateY(-3px); }
+
+  .stat-icon { font-size: 2rem; margin-bottom: 0.7rem; }
+  .stat-tile h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+  .stat-tile p { font-size: 0.82rem; color: var(--muted); }
+
+  /* ── DIAGRAM ── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+  }
+  .diag-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+  }
+  .diag-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .diag-node {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.55rem 1rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--sub);
+    white-space: nowrap;
+  }
+  .diag-node.hi-ind { border-color: var(--indigo); color: #a5b4fc; background: rgba(99,102,241,0.08); }
+  .diag-node.hi-amb { border-color: var(--amber);  color: #fcd34d; background: rgba(245,158,11,0.08); }
+  .diag-node.hi-vio { border-color: var(--violet); color: #c4b5fd; background: rgba(139,92,246,0.08); }
+  .diag-arrow {
+    color: var(--muted);
+    font-size: 1rem;
+  }
+  .diag-return {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1.2rem;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  .diag-return-line {
+    flex: 1;
+    max-width: 200px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--indigo), transparent);
+    animation: flow-line 2.5s ease-in-out infinite;
+  }
+  @keyframes flow-line {
+    0%, 100% { opacity: 0.3; }
+    50%       { opacity: 1; }
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+  footer strong { color: var(--sub); }
+  .footer-dot { margin: 0 0.5rem; opacity: 0.4; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── HERO ── -->
+  <div class="hero">
+    <div class="hero-badge">Agnes AI · Self-Learning System</div>
+    <h1>How Agnes Gets<br/>Smarter Over Time</h1>
+    <p>Every decision Agnes makes teaches it something new — no retraining required. Here's how that works in plain English.</p>
+  </div>
+
+  <!-- ── SECTION 1: MISCONCEPTION VS REALITY ── -->
+  <section>
+    <div class="section-label">First, let's clear something up</div>
+    <div class="section-title">It's not what you think</div>
+    <div class="section-sub">"Self-learning AI" sounds complex. Agnes's approach is much simpler — and more transparent.</div>
+    <div class="two-col">
+      <div class="myth-card">
+        <div class="card-icon">🧬</div>
+        <div class="card-label">Common Misconception</div>
+        <h3>"It retrains the AI model with new data"</h3>
+        <p>People assume self-learning means the AI's internal weights or parameters change every time it's used. This would be slow, expensive, and opaque.</p>
+      </div>
+      <div class="reality-card">
+        <div class="card-icon">📚</div>
+        <div class="card-label">What Agnes Actually Does</div>
+        <h3>"It builds a library of past decisions and reads them before each new evaluation"</h3>
+        <p>Agnes writes every decision to a memory file and reads the most relevant ones back into its prompt — like a doctor consulting case notes before seeing the next patient.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION 2: THE 3-STEP LOOP ── -->
+  <section>
+    <div class="section-label">The core mechanism</div>
+    <div class="section-title">A 3-step learning loop</div>
+    <div class="section-sub">Every evaluation runs these three steps automatically, growing smarter with each cycle.</div>
+
+    <div class="loop-wrapper">
+
+      <!-- Step 1 -->
+      <div class="step-card step-1">
+        <div class="step-number">①</div>
+        <h3>Evaluate</h3>
+        <p>Gemini AI analyses two ingredient suppliers and decides whether one can safely replace the other across all affected products.</p>
+        <span class="code-chip">gemini-flash-latest</span>
+      </div>
+
+      <div class="step-connector">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-card step-2">
+        <div class="step-number">②</div>
+        <h3>Remember</h3>
+        <p>The verdict — ingredient pair, grades, certifications, confidence score and full reasoning — is immediately written to a memory file.</p>
+        <span class="code-chip amber">KB/decisions.json</span>
+      </div>
+
+      <div class="step-connector">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step-card step-3">
+        <div class="step-number">③</div>
+        <h3>Recall</h3>
+        <p>Next time, before calling Gemini, Agnes searches the memory file for similar past cases and shows them to the model as "Precedent Cases".</p>
+        <span class="code-chip violet">retrieve_similar_cases()</span>
+      </div>
+
+    </div>
+
+    <!-- Loop-back indicator -->
+    <div class="loop-return">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.65-3.65L20 9m0 6a9 9 0 01-14.65 3.65L4 15"/>
+      </svg>
+      <span>Step ③ feeds back into Step ① — every new evaluation is informed by all previous ones</span>
+    </div>
+  </section>
+
+  <!-- ── SECTION 3: DATA FLOW DIAGRAM ── -->
+  <section>
+    <div class="section-label">Visual summary</div>
+    <div class="section-title">The data flow at a glance</div>
+    <div class="section-sub">Follow the path from a single evaluation to a continuously improving system.</div>
+
+    <div class="diagram-wrap">
+      <div class="diag-title">Agnes Self-Learning Data Flow</div>
+      <div class="diag-flow">
+        <div class="diag-node hi-ind">Gemini evaluates<br/>ingredient pair</div>
+        <div class="diag-arrow">→</div>
+        <div class="diag-node hi-amb">store_decision()<br/>writes to decisions.json</div>
+        <div class="diag-arrow">→</div>
+        <div class="diag-node hi-vio">retrieve_similar_cases()<br/>finds top matches (Jaccard)</div>
+        <div class="diag-arrow">→</div>
+        <div class="diag-node hi-ind">format_precedent_block()<br/>injects into system prompt</div>
+      </div>
+      <div class="diag-return">
+        <div class="diag-return-line"></div>
+        <span style="color:var(--muted);font-size:0.75rem;">loops back to next evaluation</span>
+        <div class="diag-return-line"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION 4: HUMAN IN THE LOOP ── -->
+  <section>
+    <div class="section-label">Safety by design</div>
+    <div class="section-title">Humans stay in control</div>
+    <div class="section-sub">Agnes never saves a decision to memory without a human confirming it first.</div>
+
+    <div class="human-callout">
+      <div class="callout-icon">🧑‍⚖️</div>
+      <div>
+        <h3>The Human Confirmation Gate</h3>
+        <p>When Agnes returns an evaluation in the Gradio UI, nothing is written to memory yet. The decision is only saved after a human explicitly chooses what to do with it:</p>
+        <div class="btn-group">
+          <span class="btn btn-apply">✓ Apply — save this verdict</span>
+          <span class="btn btn-reject">✗ Reject All — override and save as REJECT</span>
+        </div>
+        <p class="btn-caption">This means the memory file only ever contains human-verified decisions — bad AI guesses can't silently corrupt future evaluations.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION 5: WHY IT MATTERS ── -->
+  <section>
+    <div class="section-label">The big picture</div>
+    <div class="section-title">Why this approach is powerful</div>
+    <div class="section-sub">Three key benefits for supply chain teams.</div>
+
+    <div class="stats-grid">
+      <div class="stat-tile">
+        <div class="stat-icon">💸</div>
+        <h3>Zero Retraining Cost</h3>
+        <p>Agnes's AI model weights never change. Learning is stored in a plain JSON file — no GPU, no MLOps pipeline.</p>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-icon">📈</div>
+        <h3>Improves With Every Use</h3>
+        <p>After 10 evaluations the system has 10 cases. After 1,000, it has institutional knowledge your team never had before.</p>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-icon">🔍</div>
+        <h3>Fully Auditable</h3>
+        <p>Every decision, its reasoning, confidence score, and who confirmed it is stored in a human-readable file — no black box.</p>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /page -->
+
+<footer>
+  <div class="page" style="padding-bottom:0;">
+    <strong>Agnes AI</strong>
+    <span class="footer-dot">·</span>
+    Supply Chain Intelligence
+    <span class="footer-dot">·</span>
+    Self-learning via RAG-based decision memory
+  </div>
+</footer>
+
+</body>
+</html>

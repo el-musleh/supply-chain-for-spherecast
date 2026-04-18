@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Team 3 — Scalability & Learning System Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;600&family=Karla:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0c0d0f;
+    --surface:  #13151a;
+    --border:   #242830;
+    --amber:    #f5a623;
+    --amber2:   #e8891a;
+    --teal:     #2dd4bf;
+    --red:      #f87171;
+    --text:     #e8e9eb;
+    --muted:    #6b7280;
+    --tag-bg:   #1e2028;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Karla', sans-serif;
+    font-size: 16px;
+    overflow: hidden;
+  }
+
+  /* ─── DECK WRAPPER ─── */
+  #deck {
+    position: relative;
+    width: 100vw; height: 100vh;
+  }
+
+  /* ─── SLIDES ─── */
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4rem 6rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .35s cubic-bezier(.4,0,.2,1), transform .35s cubic-bezier(.4,0,.2,1);
+    transform: translateX(40px);
+    gap: 1.8rem;
+    overflow: hidden;
+  }
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(0);
+  }
+  .slide.out {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+
+  /* ─── DECORATIVE GRID ─── */
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity: .35;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .slide > * { position: relative; z-index: 1; }
+
+  /* ─── ACCENT LINE ─── */
+  .slide-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    letter-spacing: .18em;
+    color: var(--amber);
+    text-transform: uppercase;
+  }
+
+  /* ─── HEADINGS ─── */
+  h1, h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  h1 { font-size: clamp(2.2rem, 4vw, 3.4rem); max-width: 18ch; }
+  h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); }
+
+  .amber { color: var(--amber); }
+  .teal  { color: var(--teal);  }
+  .red   { color: var(--red);   }
+
+  /* ─── SUBTITLE ─── */
+  .subtitle {
+    font-size: 1.15rem;
+    font-weight: 300;
+    color: #9ca3af;
+    max-width: 60ch;
+    line-height: 1.65;
+  }
+
+  /* ─── THREE QUESTIONS ─── */
+  .questions {
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+    margin-top: .4rem;
+  }
+  .q-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    font-size: .97rem;
+  }
+  .q-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+    color: var(--amber);
+    padding: .2rem .5rem;
+    border: 1px solid var(--amber);
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ─── PIPELINE ─── */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .pipe-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .55rem 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .78rem;
+    white-space: nowrap;
+    position: relative;
+  }
+  .pipe-box.highlight { border-color: var(--amber); color: var(--amber); }
+  .pipe-box.team1 { border-color: #818cf8; color: #818cf8; }
+  .pipe-box.team2 { border-color: var(--teal); color: var(--teal); }
+  .pipe-arrow {
+    width: 28px;
+    height: 2px;
+    background: var(--border);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .pipe-arrow::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: -4px;
+    border-left: 6px solid var(--border);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+  .pipe-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .62rem;
+    color: var(--muted);
+    position: absolute;
+    bottom: -1.2rem;
+    left: 0;
+    white-space: nowrap;
+  }
+  .pipeline-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+  }
+  .pipeline-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .pipeline-v {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .pipe-row {
+    display: flex;
+    align-items: center;
+  }
+  .pipe-down {
+    width: 2px;
+    height: 20px;
+    background: var(--border);
+    margin-left: 52px;
+    position: relative;
+  }
+  .pipe-down::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: -4px;
+    border-top: 6px solid var(--border);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+  }
+  .pipe-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .62rem;
+    color: var(--muted);
+    margin-left: 1rem;
+    white-space: nowrap;
+  }
+
+  /* ─── TABLE ─── */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .9rem;
+  }
+  .data-table thead th {
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    letter-spacing: .1em;
+    color: var(--muted);
+    padding: .5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+  .data-table tbody td {
+    padding: .65rem 1rem;
+    border-bottom: 1px solid #1a1d24;
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .data-table tbody tr:hover td { background: #161820; }
+  .data-table td:first-child {
+    font-weight: 600;
+    color: var(--amber);
+    white-space: nowrap;
+  }
+
+  /* ─── CODE BLOCK ─── */
+  .code-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+    line-height: 1.8;
+    color: #c5c8d1;
+    max-width: 700px;
+  }
+  .code-block .kw  { color: #818cf8; }
+  .code-block .ty  { color: var(--teal); }
+  .code-block .cm  { color: var(--muted); }
+  .code-block .st  { color: var(--amber); }
+
+  /* ─── FLYWHEEL ─── */
+  .flywheel {
+    position: relative;
+    width: 420px;
+    height: 200px;
+    flex-shrink: 0;
+  }
+  .fw-node {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .5rem 1rem;
+    font-size: .82rem;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .fw-node.amber { border-color: var(--amber); color: var(--amber); }
+  .fw-node.teal  { border-color: var(--teal);  color: var(--teal);  }
+  .fw-arrow {
+    position: absolute;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .65rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ─── BULLET LIST ─── */
+  .blist {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+  }
+  .blist li {
+    display: flex;
+    gap: .8rem;
+    align-items: flex-start;
+    font-size: .95rem;
+    line-height: 1.55;
+  }
+  .blist li::before {
+    content: '▸';
+    color: var(--amber);
+    flex-shrink: 0;
+    margin-top: .1rem;
+  }
+  .blist li strong { color: var(--text); }
+
+  /* ─── METRIC CARDS ─── */
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .8rem;
+    width: 100%;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .9rem 1rem;
+  }
+  .metric-card .m-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .65rem;
+    color: var(--muted);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: .3rem;
+  }
+  .metric-card .m-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--teal);
+  }
+  .metric-card .m-desc {
+    font-size: .78rem;
+    color: #9ca3af;
+    margin-top: .2rem;
+    line-height: 1.4;
+  }
+
+  /* ─── SAFEGUARD CARDS ─── */
+  .safeguard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .8rem;
+    width: 100%;
+  }
+  .sg-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .9rem 1rem;
+    border-left: 3px solid var(--amber);
+  }
+  .sg-card .sg-title {
+    font-weight: 700;
+    font-size: .88rem;
+    color: var(--amber);
+    margin-bottom: .3rem;
+  }
+  .sg-card .sg-desc {
+    font-size: .78rem;
+    color: #9ca3af;
+    line-height: 1.45;
+  }
+
+  /* ─── CLOSING ─── */
+  .closing-quote {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(1.3rem, 2.5vw, 1.9rem);
+    font-weight: 700;
+    max-width: 28ch;
+    line-height: 1.35;
+    border-left: 3px solid var(--amber);
+    padding-left: 1.5rem;
+  }
+
+  /* ─── TWO-COL LAYOUT ─── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    width: 100%;
+    align-items: start;
+  }
+  .left-col, .right-col { display: flex; flex-direction: column; gap: 1rem; }
+
+  /* ─── TRADEOFF TABLE ─── */
+  .tradeoff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .84rem;
+  }
+  .tradeoff-table thead th {
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .65rem;
+    letter-spacing: .1em;
+    color: var(--muted);
+    padding: .4rem .8rem;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+  .tradeoff-table tbody td {
+    padding: .55rem .8rem;
+    border-bottom: 1px solid #1a1d24;
+    line-height: 1.4;
+    vertical-align: top;
+  }
+  .tradeoff-table tbody tr:hover td { background: #161820; }
+  .tradeoff-table td:first-child { color: var(--teal); font-size: .8rem; }
+  .tradeoff-table td:nth-child(2) { font-weight: 600; color: var(--text); }
+  .tradeoff-table td:nth-child(3) { color: var(--muted); font-size: .8rem; }
+
+  /* ─── FEEDBACK PILLS ─── */
+  .feedback-row {
+    display: flex;
+    gap: .8rem;
+    flex-wrap: wrap;
+  }
+  .fb-pill {
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: .4rem 1rem;
+    font-size: .82rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .fb-pill .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .fb-pill .dot.green { background: #4ade80; }
+  .fb-pill .dot.red   { background: var(--red); }
+  .fb-pill .dot.amber { background: var(--amber); }
+
+  /* ─── NAV ─── */
+  #nav {
+    position: fixed;
+    bottom: 1.8rem;
+    right: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    z-index: 100;
+  }
+  #progress-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    color: var(--muted);
+  }
+  .nav-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    transition: border-color .2s, background .2s;
+  }
+  .nav-btn:hover { border-color: var(--amber); background: #1e1f26; }
+  .nav-btn svg { width: 14px; height: 14px; fill: currentColor; }
+  #progress-bar-wrap {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--border);
+    z-index: 100;
+  }
+  #progress-bar {
+    height: 100%;
+    background: var(--amber);
+    transition: width .35s ease;
+  }
+
+  /* ─── SPEAKER NOTES ─── */
+  #notes-toggle {
+    position: fixed;
+    top: 1.2rem; right: 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .65rem;
+    letter-spacing: .1em;
+    color: var(--muted);
+    cursor: pointer;
+    padding: .3rem .7rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    text-transform: uppercase;
+    z-index: 100;
+    transition: color .2s, border-color .2s;
+  }
+  #notes-toggle:hover { color: var(--amber); border-color: var(--amber); }
+  #notes-panel {
+    position: fixed;
+    bottom: 3.5rem; left: 1.5rem;
+    max-width: 520px;
+    background: #11131a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-size: .82rem;
+    line-height: 1.6;
+    color: #9ca3af;
+    z-index: 100;
+    display: none;
+    font-style: italic;
+  }
+  #notes-panel.visible { display: block; }
+
+  /* ─── SLIDE NUMBER BADGE ─── */
+  .slide-number {
+    position: absolute;
+    top: 1.5rem; right: 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .65rem;
+    color: var(--muted);
+  }
+
+  /* ─── INTRO SLIDE ACCENT ─── */
+  #slide-0::after {
+    content: '';
+    position: absolute;
+    right: -120px; top: 50%;
+    transform: translateY(-50%);
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,166,35,.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ─── TEAM BADGE ─── */
+  .team-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    background: rgba(245,166,35,.1);
+    border: 1px solid rgba(245,166,35,.3);
+    border-radius: 50px;
+    padding: .3rem .9rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    color: var(--amber);
+    letter-spacing: .05em;
+  }
+
+  /* Q&A Slide */
+  .qa-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .8rem;
+    width: 100%;
+  }
+  .qa-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .9rem 1rem;
+  }
+  .qa-card .qa-q {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    color: var(--teal);
+    margin-bottom: .4rem;
+    line-height: 1.4;
+  }
+  .qa-card .qa-a {
+    font-size: .82rem;
+    color: #9ca3af;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- ─── SLIDE 0: OPENING ─── -->
+  <div class="slide active" id="slide-0">
+    <span class="slide-number">00</span>
+    <div class="team-badge">Spherecast @ TUM.ai · Team 3</div>
+    <h1>We're not building<br/>a parser. We're building an <span class="amber">operational intelligence layer.</span></h1>
+    <p class="subtitle">Scalability &amp; Learning System Design — how this works for one company today and ten thousand tomorrow, and gets smarter without engineers babysitting it.</p>
+    <div class="questions">
+      <div class="q-item">
+        <span class="q-num">01</span>
+        <span>How do you scale to thousands of tenants without rebuilding per client?</span>
+      </div>
+      <div class="q-item">
+        <span class="q-num">02</span>
+        <span>How do the abstractions extend beyond POs — to shipments, work orders, transfers?</span>
+      </div>
+      <div class="q-item">
+        <span class="q-num">03</span>
+        <span>How does the system improve autonomously over time?</span>
+      </div>
+    </div>
+    <div class="notes" hidden>Team 1 handles ingestion. Team 2 handles matching. Our job is to make sure that when this works for one company today, it still works for ten thousand companies tomorrow — and that it gets smarter without engineers babysitting it.</div>
+  </div>
+
+  <!-- ─── SLIDE 1: ARCHITECTURE ─── -->
+  <div class="slide" id="slide-1">
+    <span class="slide-number">01</span>
+    <span class="slide-label">Architecture</span>
+    <h2>Event-driven pipeline — <span class="amber">fully stateless stages</span></h2>
+    <div style="display:flex; flex-direction:column; gap:.4rem; margin-top:.4rem;">
+      <div class="pipe-row">
+        <div class="pipe-box" style="border-color:#6366f1;color:#6366f1;">📬 Email Inbox<br/><span style="font-size:.6rem;color:var(--muted);">per tenant</span></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-box" style="border-color:#6366f1;color:#6366f1;">[Ingestion Queue]<br/><span style="font-size:.6rem;color:var(--muted);">Kafka / SQS</span></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-box team1">[Extraction Workers]<br/><span style="font-size:.6rem;color:var(--muted);">← Team 1</span></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-box team2">[Matching Engine]<br/><span style="font-size:.6rem;color:var(--muted);">← Team 2</span></div>
+      </div>
+      <div style="width:2px;height:24px;background:var(--border);margin-left:calc(50% - 1px);position:relative;">
+        <div style="position:absolute;bottom:-1px;left:-4px;border-top:7px solid var(--border);border-left:5px solid transparent;border-right:5px solid transparent;"></div>
+      </div>
+      <div class="pipe-row" style="justify-content:center;gap:0;">
+        <div class="pipe-box highlight">[Confidence Gate]</div>
+        <div style="display:flex;flex-direction:column;gap:.3rem;margin-left:1.5rem;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#4ade80;">▸ &gt;0.85 → auto-apply</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--amber);">▸ 0.5–0.85 → human review</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--red);">▸ &lt;0.5 → discard</span>
+        </div>
+      </div>
+      <div style="width:2px;height:24px;background:var(--border);margin-left:calc(50% - 1px);position:relative;">
+        <div style="position:absolute;bottom:-1px;left:-4px;border-top:7px solid var(--border);border-left:5px solid transparent;border-right:5px solid transparent;"></div>
+      </div>
+      <div class="pipe-row" style="justify-content:center;gap:0;">
+        <div class="pipe-box" style="border-color:#4ade80;color:#4ade80;">[ERP Adapter]<br/><span style="font-size:.6rem;color:var(--muted);">SAP · Oracle · Dynamics</span></div>
+        <div class="pipe-arrow"></div>
+        <div class="pipe-box" style="border-color:var(--teal);color:var(--teal);">[Audit Log]<br/><span style="font-size:.6rem;color:var(--muted);">→ learning store</span></div>
+      </div>
+    </div>
+    <p class="subtitle" style="font-size:.88rem;margin-top:.5rem;">Every stage is <strong style="color:var(--text)">stateless &amp; horizontally scalable</strong>. The queue decouples email arrival from processing speed. Every ERP write traces back to a source email — enabling rollback <em>and</em> feeding the learning loop.</p>
+    <div class="notes" hidden>Each stage is stateless and horizontally scalable. The queue decouples email arrival from processing speed. The audit log is critical — every write to ERP traces back to a source email, which enables rollback and feeds the learning loop.</div>
+  </div>
+
+  <!-- ─── SLIDE 2: INPUT SIGNALS ─── -->
+  <div class="slide" id="slide-inputs">
+    <span class="slide-number">02</span>
+    <span class="slide-label">Automatic Ingestion</span>
+    <h2>The system <span class="amber">feeds itself</span> — from every signal source</h2>
+    <div class="two-col" style="align-items:start;gap:2rem;">
+      <!-- LEFT: source grid -->
+      <div style="display:flex;flex-direction:column;gap:.8rem;">
+        <p style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;">Input sources (automatic, per tenant)</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+          <div style="background:var(--surface);border:1px solid #3b3f52;border-radius:8px;padding:.7rem .9rem;">
+            <div style="font-size:1.1rem;margin-bottom:.25rem;">📧</div>
+            <div style="font-weight:700;font-size:.85rem;color:var(--text);">Email</div>
+            <div style="font-size:.75rem;color:#9ca3af;margin-top:.15rem;line-height:1.4;">Delay notices, confirmations, invoices, shipment alerts</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid #3b3f52;border-radius:8px;padding:.7rem .9rem;">
+            <div style="font-size:1.1rem;margin-bottom:.25rem;">🔌</div>
+            <div style="font-weight:700;font-size:.85rem;color:var(--text);">Supplier API</div>
+            <div style="font-size:.75rem;color:#9ca3af;margin-top:.15rem;line-height:1.4;">EDI, REST, SAP Ariba, Coupa portals — push or pull</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid #3b3f52;border-radius:8px;padding:.7rem .9rem;">
+            <div style="font-size:1.1rem;margin-bottom:.25rem;">📰</div>
+            <div style="font-weight:700;font-size:.85rem;color:var(--text);">News / RSS</div>
+            <div style="font-size:.75rem;color:#9ca3af;margin-top:.15rem;line-height:1.4;">Port strikes, weather events, geopolitical disruptions</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid #3b3f52;border-radius:8px;padding:.7rem .9rem;">
+            <div style="font-size:1.1rem;margin-bottom:.25rem;">📈</div>
+            <div style="font-weight:700;font-size:.85rem;color:var(--text);">Market Data</div>
+            <div style="font-size:.75rem;color:#9ca3af;margin-top:.15rem;line-height:1.4;">Commodity prices, freight rates, raw material availability</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid #3b3f52;border-radius:8px;padding:.7rem .9rem;">
+            <div style="font-size:1.1rem;margin-bottom:.25rem;">⚙️</div>
+            <div style="font-weight:700;font-size:.85rem;color:var(--text);">ERP Webhooks</div>
+            <div style="font-size:.75rem;color:#9ca3af;margin-top:.15rem;line-height:1.4;">Internal change events, inventory alerts, approval triggers</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid #3b3f52;border-radius:8px;padding:.7rem .9rem;">
+            <div style="font-size:1.1rem;margin-bottom:.25rem;">📡</div>
+            <div style="font-weight:700;font-size:.85rem;color:var(--text);">IoT / Tracking</div>
+            <div style="font-size:.75rem;color:#9ca3af;margin-top:.15rem;line-height:1.4;">GPS on shipments, warehouse sensors, customs scans</div>
+          </div>
+        </div>
+      </div>
+      <!-- RIGHT: flow + decisions -->
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <!-- convergence diagram -->
+        <svg width="340" height="160" viewBox="0 0 340 160" style="overflow:visible;">
+          <!-- source labels -->
+          <text x="4" y="22" fill="#6b7280" font-family="JetBrains Mono,monospace" font-size="9">Email</text>
+          <text x="4" y="52" fill="#6b7280" font-family="JetBrains Mono,monospace" font-size="9">Supplier API</text>
+          <text x="4" y="82" fill="#6b7280" font-family="JetBrains Mono,monospace" font-size="9">News / RSS</text>
+          <text x="4" y="112" fill="#6b7280" font-family="JetBrains Mono,monospace" font-size="9">Market Data</text>
+          <text x="4" y="142" fill="#6b7280" font-family="JetBrains Mono,monospace" font-size="9">ERP / IoT</text>
+          <!-- lines converging to center queue -->
+          <line x1="60" y1="20" x2="140" y2="80" stroke="#374151" stroke-width="1.2"/>
+          <line x1="72" y1="50" x2="140" y2="80" stroke="#374151" stroke-width="1.2"/>
+          <line x1="60" y1="80" x2="140" y2="80" stroke="#374151" stroke-width="1.2"/>
+          <line x1="72" y1="110" x2="140" y2="80" stroke="#374151" stroke-width="1.2"/>
+          <line x1="60" y1="140" x2="140" y2="80" stroke="#374151" stroke-width="1.2"/>
+          <!-- queue box -->
+          <rect x="140" y="62" width="60" height="36" rx="6" fill="#13151a" stroke="#f5a623" stroke-width="1.5"/>
+          <text x="170" y="77" text-anchor="middle" fill="#f5a623" font-family="JetBrains Mono,monospace" font-size="8" font-weight="600">Unified</text>
+          <text x="170" y="90" text-anchor="middle" fill="#f5a623" font-family="JetBrains Mono,monospace" font-size="8" font-weight="600">Queue</text>
+          <!-- arrow right -->
+          <line x1="200" y1="80" x2="225" y2="80" stroke="#374151" stroke-width="1.5" marker-end="url(#arr2)"/>
+          <!-- output box -->
+          <rect x="225" y="62" width="80" height="36" rx="6" fill="#13151a" stroke="#2dd4bf" stroke-width="1.5"/>
+          <text x="265" y="77" text-anchor="middle" fill="#2dd4bf" font-family="JetBrains Mono,monospace" font-size="8" font-weight="600">Normalize</text>
+          <text x="265" y="90" text-anchor="middle" fill="#2dd4bf" font-family="JetBrains Mono,monospace" font-size="8" font-weight="600">&amp; Score</text>
+          <defs>
+            <marker id="arr2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#374151"/>
+            </marker>
+          </defs>
+        </svg>
+        <!-- decisions -->
+        <p style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;">Decisions triggered automatically</p>
+        <ul class="blist" style="font-size:.82rem;">
+          <li>Delay email → <strong>update PO line delivery date</strong></li>
+          <li>Supplier API price delta → <strong>flag buyer for approval</strong></li>
+          <li>News: port strike → <strong>surface all affected open POs</strong></li>
+          <li>Tracking stalled → <strong>create exception &amp; escalate</strong></li>
+        </ul>
+        <!-- scale note -->
+        <div style="padding:.7rem 1rem;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);border-radius:6px;font-size:.8rem;color:#d1d5db;line-height:1.5;">
+          <strong style="color:var(--amber);">Scale key:</strong> connectors are <em>per source type</em>, not per tenant. One Email adapter serves all companies. News signals are shared — only the affected-PO lookup is tenant-specific.
+        </div>
+      </div>
+    </div>
+    <div class="notes" hidden>The system doesn't wait for humans to forward emails. It listens to every signal source automatically. The connectors are shared infrastructure — adding tenant N+1 adds near-zero overhead if their email volume is typical.</div>
+  </div>
+
+  <!-- ─── SLIDE 2: MULTI-TENANCY ─── -->
+  <div class="slide" id="slide-2">
+    <span class="slide-number">03</span>
+    <span class="slide-label">Multi-tenancy</span>
+    <h2>Shared infra. <span class="amber">Isolated config + data.</span></h2>
+    <div class="two-col">
+      <div class="left-col">
+        <table class="data-table">
+          <thead><tr><th>Layer</th><th>Approach</th></tr></thead>
+          <tbody>
+            <tr><td>Compute</td><td>Shared workers, auto-scaled on queue depth</td></tr>
+            <tr><td>Data</td><td>Row-level isolation via <code style="font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--teal)">tenant_id</code> on every record</td></tr>
+            <tr><td>Config</td><td>Per-tenant store: supplier aliases, PO regex, date formats, field mappings</td></tr>
+            <tr><td>Models</td><td>Shared base LLM + per-tenant few-shot cache</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="right-col">
+        <p style="font-size:.9rem;font-weight:600;color:var(--amber);">Cold Start Problem</p>
+        <ul class="blist" style="font-size:.87rem;">
+          <li>Seed with ERP export at onboarding (existing POs + supplier names)</li>
+          <li>Generic prompts for first <strong>N emails</strong></li>
+          <li>Promote to tenant-specific prompts after <strong>20–50 confirmed matches</strong></li>
+        </ul>
+        <div style="margin-top:.8rem;padding:.8rem 1rem;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);border-radius:8px;font-size:.82rem;color:#d1d5db;line-height:1.5;">
+          The expensive parts — LLM inference, vector search — are <strong style="color:var(--text)">shared</strong>. What's tenant-specific is cheap: a config JSON and a few-shot cache. Serve 10,000 companies without 10,000 infrastructure stacks.
+        </div>
+      </div>
+    </div>
+    <div class="notes" hidden>The expensive part — LLM inference, vector search — is shared. What's tenant-specific is cheap: a config JSON and a few-shot cache. This is how you serve 10,000 companies without 10,000 infrastructure stacks.</div>
+  </div>
+
+  <!-- ─── SLIDE 3: ABSTRACTION ─── -->
+  <div class="slide" id="slide-3">
+    <span class="slide-number">04</span>
+    <span class="slide-label">Generic Document Abstraction</span>
+    <h2>One pipeline. <span class="amber">Swappable schema</span> per doc type.</h2>
+    <div class="two-col">
+      <div class="left-col">
+        <div class="code-block">
+<span class="kw">class</span> <span class="ty">OperationalDocument</span>:<br/>
+&nbsp;&nbsp;<span class="cm"># PO · TO · WO · SHIPMENT · INVOICE</span><br/>
+&nbsp;&nbsp;doc_type: <span class="ty">DocType</span><br/>
+&nbsp;&nbsp;references: <span class="ty">List</span>[<span class="ty">EntityRef</span>]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># PO number, supplier ID, SKU…</span><br/>
+&nbsp;&nbsp;line_items: <span class="ty">List</span>[<span class="ty">LineItem</span>]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># qty, delivery_date, status, price</span><br/>
+&nbsp;&nbsp;status_updates: <span class="ty">List</span>[<span class="ty">StatusUpdate</span>]<br/>
+&nbsp;&nbsp;metadata: {<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="st">"source_email"</span>, <span class="st">"confidence"</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="st">"tenant_id"</span>, <span class="st">"timestamp"</span><br/>
+&nbsp;&nbsp;}
+        </div>
+      </div>
+      <div class="right-col">
+        <p style="font-size:.9rem;font-weight:600;color:var(--teal);">Plugin pattern per doc_type</p>
+        <ul class="blist" style="font-size:.87rem;">
+          <li>Each type registers: <strong>extraction prompt</strong>, <strong>field validators</strong>, <strong>ERP write handler</strong></li>
+          <li>Adding a new doc type = <strong>config + prompt</strong>, not new code</li>
+        </ul>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:.3rem .7rem;border-radius:4px;background:#1a2030;border:1px solid #2d4060;color:#60a5fa;">PO Update</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:.3rem .7rem;border-radius:4px;background:#1a2030;border:1px solid #2d4060;color:#60a5fa;">Transfer Order</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:.3rem .7rem;border-radius:4px;background:#1a2030;border:1px solid #2d4060;color:#60a5fa;">Work Order</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:.3rem .7rem;border-radius:4px;background:#1a2030;border:1px solid #2d4060;color:#60a5fa;">Shipment Notice</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:.3rem .7rem;border-radius:4px;background:#1a2030;border:1px solid #2d4060;color:#60a5fa;">Invoice</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:.3rem .7rem;border-radius:4px;background:#1a2030;border:1px dashed #4b5563;color:#6b7280;">+ next type…</span>
+        </div>
+        <div style="margin-top:.8rem;padding:.8rem 1rem;background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.15);border-radius:8px;font-size:.82rem;color:#d1d5db;line-height:1.5;">
+          The same LLM call that extracts a PO update can extract a shipment delay — only the <strong style="color:var(--text)">prompt + ERP adapter</strong> change. Generalize without rewriting.
+        </div>
+      </div>
+    </div>
+    <div class="notes" hidden>The same LLM call that extracts a PO update can extract a shipment delay or a work order status — the extraction prompt and the ERP write adapter are the only parts that change. This is how you generalize without rewriting.</div>
+  </div>
+
+  <!-- ─── SLIDE 4: LEARNING FLYWHEEL ─── -->
+  <div class="slide" id="slide-4">
+    <span class="slide-number">05</span>
+    <span class="slide-label">Learning System</span>
+    <h2>The <span class="amber">Learning Flywheel</span></h2>
+    <div class="two-col">
+      <div class="left-col" style="gap:.8rem;">
+        <p style="font-size:.88rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;font-family:'JetBrains Mono',monospace;">Three feedback sources</p>
+        <div class="fb-pill"><span class="dot green"></span><span><strong>Human corrections</strong> — reviewer override → labeled example</span></div>
+        <div class="fb-pill"><span class="dot amber"></span><span><strong>Auto-confirmed writes</strong> — ERP accepted → implicit positive signal</span></div>
+        <div class="fb-pill"><span class="dot red"></span><span><strong>ERP change log diff</strong> — human later changed → implicit negative signal</span></div>
+        <p style="font-size:.82rem;color:#9ca3af;margin-top:.3rem;line-height:1.55;">The key insight: you don't need explicit labeling. Every ERP write that <em>sticks</em> is a training signal. <strong style="color:var(--text)">The system earns autonomy by demonstrating it's right.</strong></p>
+        <div style="padding:.7rem 1rem;background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.74rem;color:var(--amber);">
+          Model update trigger:<br/>correction rate &lt; 5% over 100 examples<br/>→ promote few-shot cache to LoRA adapter
+        </div>
+      </div>
+      <div class="right-col" style="align-items:center;justify-content:center;">
+        <!-- SVG flywheel diagram -->
+        <svg width="360" height="280" viewBox="0 0 360 280" style="overflow:visible;">
+          <!-- boxes -->
+          <rect x="10" y="20" width="140" height="52" rx="8" fill="#13151a" stroke="#f5a623" stroke-width="1.5"/>
+          <text x="80" y="42" text-anchor="middle" fill="#f5a623" font-family="Syne,sans-serif" font-size="11" font-weight="700">More emails</text>
+          <text x="80" y="57" text-anchor="middle" fill="#9ca3af" font-family="Karla,sans-serif" font-size="10">→ confirmed matches</text>
+
+          <rect x="210" y="20" width="140" height="52" rx="8" fill="#13151a" stroke="#2dd4bf" stroke-width="1.5"/>
+          <text x="280" y="42" text-anchor="middle" fill="#2dd4bf" font-family="Syne,sans-serif" font-size="11" font-weight="700">Better confidence</text>
+          <text x="280" y="57" text-anchor="middle" fill="#9ca3af" font-family="Karla,sans-serif" font-size="10">fewer false escalations</text>
+
+          <rect x="10" y="200" width="140" height="52" rx="8" fill="#13151a" stroke="#f5a623" stroke-width="1.5"/>
+          <text x="80" y="222" text-anchor="middle" fill="#f5a623" font-family="Syne,sans-serif" font-size="11" font-weight="700">Less human review</text>
+          <text x="80" y="237" text-anchor="middle" fill="#9ca3af" font-family="Karla,sans-serif" font-size="10">↑ auto-apply rate</text>
+
+          <rect x="210" y="200" width="140" height="52" rx="8" fill="#13151a" stroke="#4ade80" stroke-width="1.5"/>
+          <text x="280" y="222" text-anchor="middle" fill="#4ade80" font-family="Syne,sans-serif" font-size="11" font-weight="700">More data</text>
+          <text x="280" y="237" text-anchor="middle" fill="#9ca3af" font-family="Karla,sans-serif" font-size="10">per-tenant few-shot cache</text>
+
+          <!-- arrows -->
+          <!-- top: right -->
+          <path d="M150 46 L210 46" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+          <!-- right: down -->
+          <path d="M280 72 L280 200" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+          <!-- bottom: left -->
+          <path d="M210 226 L150 226" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+          <!-- left: up -->
+          <path d="M80 200 L80 72" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+          <!-- center label -->
+          <text x="180" y="137" text-anchor="middle" fill="#6b7280" font-family="JetBrains Mono,monospace" font-size="9" letter-spacing="2">FLYWHEEL</text>
+
+          <defs>
+            <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#374151"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+    </div>
+    <div class="notes" hidden>The key insight is that you don't need explicit human labeling to improve. Every ERP write that sticks is a positive training signal. The system earns autonomy by demonstrating it's right.</div>
+  </div>
+
+  <!-- ─── SLIDE 5: SAFEGUARDS ─── -->
+  <div class="slide" id="slide-5">
+    <span class="slide-number">06</span>
+    <span class="slide-label">Safeguards</span>
+    <h2>Reliability = <span class="amber">known accuracy</span> + traceable failures</h2>
+    <p class="subtitle" style="font-size:.88rem;">The scariest failure mode: a <strong>confident but wrong</strong> write silently corrupts a production PO. Defense-in-depth.</p>
+    <div class="safeguard-grid">
+      <div class="sg-card">
+        <div class="sg-title">Audit Trail</div>
+        <div class="sg-desc">Every ERP write carries: source email hash, extraction trace, confidence score, operator ID.</div>
+      </div>
+      <div class="sg-card">
+        <div class="sg-title">Soft Writes</div>
+        <div class="sg-desc">Updates staged as "pending" for a configurable window (e.g. 15 min) before commit.</div>
+      </div>
+      <div class="sg-card">
+        <div class="sg-title">Anomaly Detection</div>
+        <div class="sg-desc">Flag writes deviating from historical patterns — quantity 10× normal, delivery date 2 years out.</div>
+      </div>
+      <div class="sg-card">
+        <div class="sg-title">Rollback</div>
+        <div class="sg-desc">Pending writes reversed instantly. Committed writes log a compensating transaction.</div>
+      </div>
+      <div class="sg-card">
+        <div class="sg-title">Confidence Gates</div>
+        <div class="sg-desc">Per-tenant thresholds, not global. Aerospace ≠ retail risk tolerance.</div>
+      </div>
+      <div class="sg-card" style="border-left-color:var(--teal);">
+        <div class="sg-title" style="color:var(--teal);">The Key Insight</div>
+        <div class="sg-desc">An ops team can tolerate 2% wrong answers they can fix in 2 minutes. They cannot tolerate 0.1% wrong answers discovered at month-end inventory count.</div>
+      </div>
+    </div>
+    <div class="notes" hidden>Reliability isn't just accuracy. It's known accuracy with traceable failures. An ops team can tolerate 2% wrong answers if they can find and fix them in 2 minutes. They cannot tolerate 0.1% wrong answers that they discover in a month-end inventory count.</div>
+  </div>
+
+  <!-- ─── SLIDE 6: MONITORING ─── -->
+  <div class="slide" id="slide-6">
+    <span class="slide-number">07</span>
+    <span class="slide-label">Observability</span>
+    <h2>Ship it and go home. <span class="amber">The dashboard tells you.</span></h2>
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="m-label">Extraction Accuracy</div>
+        <div class="m-val">% fields correct</div>
+        <div class="m-desc">Measured on confirmed ERP writes. Ground truth from the system itself.</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">Auto-Apply Rate</div>
+        <div class="m-val">Target: ↑ over time</div>
+        <div class="m-desc">% through without human review. Growth signals the flywheel is spinning.</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">Correction Rate</div>
+        <div class="m-val">Target: ↓ over time</div>
+        <div class="m-desc">% of auto-applies overridden by operator. Primary health signal.</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">Match Rate</div>
+        <div class="m-val">% hit ERP record</div>
+        <div class="m-desc">Drops signal supplier format change or new PO schema at sender side.</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">Time-to-Update</div>
+        <div class="m-val">Email → ERP latency</div>
+        <div class="m-desc">SLA tracking. Queue depth is the leading indicator.</div>
+      </div>
+      <div class="metric-card" style="border-color:var(--amber);">
+        <div class="m-label" style="color:var(--amber);">Drift Alerts</div>
+        <div class="m-val" style="color:var(--amber);">Correction rate &gt; 2σ</div>
+        <div class="m-desc">Re-calibrate confidence thresholds. Learning loop fixes it. You only intervene when the alert fires.</div>
+      </div>
+    </div>
+    <div class="notes" hidden>You ship this and go home. The dashboard tells you if something is drifting before the ops team calls you. The learning loop fixes it. You only intervene when the alert fires.</div>
+  </div>
+
+  <!-- ─── SLIDE 7: SCALING ECONOMICS ─── -->
+  <div class="slide" id="slide-7">
+    <span class="slide-number">08</span>
+    <span class="slide-label">Scaling Economics</span>
+    <h2>Marginal cost of tenant N+1 → <span class="amber">one config file</span></h2>
+    <table class="data-table" style="max-width:800px;">
+      <thead><tr><th>Dimension</th><th>Approach</th></tr></thead>
+      <tbody>
+        <tr><td>Email volume</td><td>Kafka partitions scale horizontally; workers autoscale on queue depth</td></tr>
+        <tr><td>LLM cost</td><td>Shared model + prompt caching for repeated supplier patterns + batch processing off-peak</td></tr>
+        <tr><td>Storage tiers</td><td>Hot: Redis (PO lookup cache) · Warm: Postgres · Cold: S3 archive</td></tr>
+        <tr><td>New tenant onboarding</td><td>ERP export → config wizard → 0 engineer hours after initial setup</td></tr>
+        <tr><td>Multi-ERP</td><td>Thin adapter per ERP type (SAP, Oracle, Dynamics) behind a common write interface</td></tr>
+      </tbody>
+    </table>
+    <div style="padding:.9rem 1.2rem;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);border-radius:8px;font-size:.9rem;color:#d1d5db;line-height:1.6;max-width:700px;">
+      The infrastructure doesn't grow linearly with tenants — it grows with <strong style="color:var(--amber)">email volume</strong>, which you smooth with queuing. Tenant growth is effectively <strong style="color:var(--text)">free compute</strong> if their email volume is low.
+    </div>
+    <div class="notes" hidden>The marginal cost of tenant N+1 approaches the cost of one ERP export and a config file. The infrastructure doesn't grow linearly with tenants — it grows with email volume, which you can smooth with queuing.</div>
+  </div>
+
+  <!-- ─── SLIDE 8: TRADEOFFS ─── -->
+  <div class="slide" id="slide-8">
+    <span class="slide-number">09</span>
+    <span class="slide-label">Design Decisions</span>
+    <h2>Key tradeoffs — <span class="amber">be ready for Q&A</span></h2>
+    <table class="tradeoff-table" style="max-width:860px;">
+      <thead><tr><th>Decision</th><th>Choice</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Shared vs per-tenant LLM</td><td>Shared base + per-tenant few-shot cache</td><td>Cost; fine-tune only after sufficient data</td></tr>
+        <tr><td>Sync vs async ERP writes</td><td>Async (staged) by default</td><td>Rollback window + avoids ERP rate limits</td></tr>
+        <tr><td>Rule-based vs LLM extraction</td><td>LLM for unstructured, rules for structured fields</td><td>Regex on PO numbers is cheaper &amp; more reliable</td></tr>
+        <tr><td>Human-in-loop threshold</td><td>Configurable per tenant, not global</td><td>Aerospace ≠ retail risk tolerance</td></tr>
+        <tr><td>Schema generalization</td><td>Abstract doc model + plugin per type</td><td>Avoid fork-per-customer maintenance hell</td></tr>
+      </tbody>
+    </table>
+    <div class="qa-grid" style="max-width:860px;margin-top:.3rem;">
+      <div class="qa-card">
+        <div class="qa-q">"What if an LLM hallucinates a PO number?"</div>
+        <div class="qa-a">Matching engine won't find a record → confidence drops → escalated to human, not auto-applied.</div>
+      </div>
+      <div class="qa-card">
+        <div class="qa-q">"Supplier changes their email format?"</div>
+        <div class="qa-a">Correction rate spikes → drift alert → human reviews a few → new few-shot examples → model adapts.</div>
+      </div>
+      <div class="qa-card">
+        <div class="qa-q">"What about GDPR / data residency?"</div>
+        <div class="qa-a">Tenant-isolated data store + regional deployment; email content purged post-extraction.</div>
+      </div>
+      <div class="qa-card">
+        <div class="qa-q">"How long until learning adds real value?"</div>
+        <div class="qa-a">50–100 confirmed examples per tenant — most active supply chains hit this in 1–2 weeks.</div>
+      </div>
+    </div>
+    <div class="notes" hidden>These are the most common pushbacks. Be ready for them. The hallucination one is important — the architecture handles it gracefully by design.</div>
+  </div>
+
+  <!-- ─── SLIDE 9: CLOSING ─── -->
+  <div class="slide" id="slide-9">
+    <span class="slide-number">10</span>
+    <div class="team-badge">Spherecast @ TUM.ai · Team 3</div>
+    <div class="closing-quote">
+      "The system starts with <span class="amber">human judgment.</span><br/>
+      It earns <span class="teal">autonomy</span> by proving it's right.<br/>
+      It scales by sharing everything <strong>general</strong><br/>
+      and isolating everything <strong>specific.</strong>"
+    </div>
+    <p class="subtitle" style="max-width:55ch;margin-top:.5rem;">That's the design.</p>
+    <div style="display:flex;gap:2.5rem;margin-top:1rem;">
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.2rem;">Focus</div>
+        <div style="font-size:.9rem;color:var(--text);">Scalability &amp; Learning</div>
+      </div>
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.2rem;">Slides</div>
+        <div style="font-size:.9rem;color:var(--text);">Architecture · Multi-tenancy · Abstraction · Flywheel · Safeguards · Monitoring · Economics</div>
+      </div>
+    </div>
+    <div class="notes" hidden>End on this quote. Pause. Let it land. Then open for questions.</div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- ─── CONTROLS ─── -->
+<div id="nav">
+  <span id="progress-text">1 / 10</span>
+  <button class="nav-btn" id="prev-btn" title="Previous (←)">
+    <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+  </button>
+  <button class="nav-btn" id="next-btn" title="Next (→)">
+    <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+  </button>
+</div>
+<div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+<div id="notes-toggle">Notes</div>
+<div id="notes-panel"></div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  let current = 0;
+
+  const progressText = document.getElementById('progress-text');
+  const progressBar  = document.getElementById('progress-bar');
+  const notesPanel   = document.getElementById('notes-panel');
+  const notesToggle  = document.getElementById('notes-toggle');
+  let notesVisible   = false;
+
+  function goTo(idx) {
+    if (idx < 0 || idx >= total) return;
+    slides[current].classList.remove('active');
+    slides[current].classList.add('out');
+    setTimeout(() => slides[idx < current ? current : current].classList.remove('out'), 360);
+    current = idx;
+    slides[current].classList.remove('out');
+    slides[current].classList.add('active');
+    progressText.textContent = `${current + 1} / ${total}`;
+    progressBar.style.width = `${((current + 1) / total) * 100}%`;
+    // update notes
+    const noteEl = slides[current].querySelector('.notes');
+    notesPanel.textContent = noteEl ? noteEl.textContent : '';
+  }
+
+  document.getElementById('next-btn').addEventListener('click', () => goTo(current + 1));
+  document.getElementById('prev-btn').addEventListener('click', () => goTo(current - 1));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')  { e.preventDefault(); goTo(current - 1); }
+    if (e.key === 'n' || e.key === 'N') notesToggle.click();
+  });
+
+  notesToggle.addEventListener('click', () => {
+    notesVisible = !notesVisible;
+    notesPanel.classList.toggle('visible', notesVisible);
+    notesToggle.textContent = notesVisible ? 'Hide Notes' : 'Notes';
+  });
+
+  // init
+  goTo(0);
+</script>
+</body>
+</html>

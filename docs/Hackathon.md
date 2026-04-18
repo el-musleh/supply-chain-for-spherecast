@@ -1,8 +1,6 @@
 # Think outside the box.
 
 - Use YFood as example in demo. show how it will help them. They are the main shareholder of the company.
-- [ ] Add two more features outside the box. to suprise the gudge,
-
 existing supplier relationships -> use the point system, similar to go-fish (the more purchase, increase. if it got delayed then decrease)
 [Spherecast](https://www.ycombinator.com/companies/spherecast) - AI Supply Chain Manager for CPG
 
@@ -34,6 +32,29 @@ existing supplier relationships -> use the point system, similar to go-fish (the
 
 The key fix: the approved set now includes APPROVE, APPROVE_WITH_CONDITIONS, and HUMAN_REVIEW_REQUIRED — only REJECT is excluded.
 
+Quick definitions:
+
+- **ERP** — Enterprise Resource Planning. The central business software (SAP, Oracle, Microsoft Dynamics) that stores all operational data: inventory, orders, suppliers, financials. Think of it as the "database of record" for a company.
+    
+- **PO** — Purchase Order. A formal document a company sends to a supplier saying "we want to buy X units of product Y at price Z, deliver by date D." The core entity in this workshop problem.
+    
+- **PO Line** — One row in a PO. A single PO covers one supplier but can have many lines, each for a different product/quantity/date.
+    
+- **TO** — Transfer Order. Like a PO but for internal movement — moving stock between a company's own warehouses rather than buying from an external supplier.
+    
+- **WO** — Work Order. An instruction to manufacture or assemble something internally. Common in factories: "produce 500 units of SKU-X on line 3 by Friday."
+    
+- **Shipment / ASN** — Advance Shipment Notice. A supplier's confirmation that goods have been dispatched, often containing tracking info and actual quantities shipped.
+
+All these document types — PO, TO, WO, Shipment — look different on the surface but are actually the same thing underneath: **a reference number, some line items, and a status**. So instead of building a separate system for each one, you build **one pipeline** and just swap out a small config per type that says "these are the field names, this is where to write in the ERP." Adding a new document type is just adding a config — not rewriting code.
+
+Think of it like a USB port: same interface, different devices plugged in.
+
+or 
+Every operational document in a supply chain — whether it's a Purchase Order, Transfer Order, Work Order, or Shipment Notice — shares the same underlying skeleton: a **unique reference number**, one or more **line items** (each with a quantity, a date, and a status), and a set of **entity links** (supplier, warehouse, SKU). The only things that differ between document types are the field names, the business rules for what counts as a valid update, and which ERP table gets written to. So instead of building a separate parser and matching pipeline for each type, you define one abstract `OperationalDocument` model with those three shared components, then register a **plugin per document type** that provides: (1) the extraction prompt telling the LLM which fields to pull, (2) the field validators specific to that type, and (3) the ERP write handler that knows where to persist the result. Adding support for Work Orders means writing a config and a prompt — not touching the core pipeline. This is the same pattern used by modern ETL frameworks and event-driven systems: **separate the schema from the mechanics**, and the mechanics scale for free.
+## Why they matter for Team 3
+
+The point of the abstraction slide (Slide 3) is that POs, TOs, WOs, and shipments all have the **same skeleton** — a reference number, line items with quantities and dates, and a status. Once your system handles PO emails, generalizing to WO or TO emails is just a config change, not a rewrite.
 # Why volume × compliance?
 
 • BOM appearances = demand proxy (each = one finished product needing this ingredient)

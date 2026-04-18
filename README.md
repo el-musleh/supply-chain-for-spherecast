@@ -52,6 +52,31 @@ jupyter-lab
 
 Open the **`explore_data.ipynb`** file to see the initial SQLite database connection and queries in Pandas.
 
+## Gradio Web UI (Alternative to Notebook)
+
+For a production-ready web interface, use the Gradio app:
+
+```bash
+# Install UI dependencies
+pipx inject jupyterlab gradio beautifulsoup4 requests python-dotenv
+
+# Run the UI
+python agnes_ui.py
+```
+
+The UI accepts 6 input types (text, image, audio, video, PDF, URL) and provides:
+- Multimodal compliance evaluation
+- RAG-augmented reasoning with source citations
+- Apply/Alternative/Reject confirmation flow
+- Decision history (last 10 evaluations)
+
+**Or use the production launcher with watchdog:**
+```bash
+chmod +x start.sh
+./start.sh
+```
+This auto-checks prerequisites, logs to `logs/agnes_ui.log`, opens your browser, and auto-restarts on crash.
+
 ## Kernel Selection (Windsurf / VS Code)
 
 When you open `agnes.ipynb` in Windsurf or VS Code and click **Run All**, the IDE may ask which kernel source to use. Always select:
