@@ -31,6 +31,7 @@ import os
 import re
 import sqlite3
 import tempfile
+import atexit
 from pathlib import Path
 
 import requests
@@ -71,12 +72,22 @@ _API_KEY = os.getenv("GEMINI_API_KEY", "")
 client = genai.Client(api_key=_API_KEY)
 
 print("Loading RAG index …")
-try:
-    rag_index = build_index("KB/regulatory_docs.json")
-    print(f"  RAG index ready — {len(rag_index.docs)} documents")
-except Exception as _e:
+KB_PATH = Path("KB/regulatory_docs.json")
+
+# Check if KB file exists before attempting to load
+if not KB_PATH.exists():
     rag_index = None
-    print(f"  RAG index unavailable ({_e}) — evaluation will proceed without context")
+    print(f"  ⚠ KB file not found: {KB_PATH}")
+    print(f"  Run: python scrape_kb.py")
+    print(f"  Evaluation will proceed without RAG context")
+else:
+    try:
+        rag_index = build_index(str(KB_PATH))
+        print(f"  RAG index ready — {len(rag_index.docs)} documents")
+    except Exception as _e:
+        rag_index = None
+        print(f"  ⚠ RAG index load failed: {_e}")
+        print(f"  Evaluation will proceed without RAG context")
 
 _MODEL = "gemini-flash-latest"
 _MAX_INLINE_BYTES = 15 * 1024 * 1024   # 15 MB inline limit (safe margin)
@@ -531,6 +542,18 @@ def _load_session_logs(filter_level: str = "All", tail: int = 100) -> str:
         return f"Error loading session logs: {e}"
 
 
+def download_session_log():
+    """Download the current session log file."""
+    if not session_logger:
+        return None
+    
+    log_path = session_logger.session_file_path
+    if not log_path.exists():
+        return None
+    
+    return str(log_path)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # URL Detection & Scraper Integration
 # ─────────────────────────────────────────────────────────────────────────────
@@ -573,62 +596,100 @@ def fetch_url_details(urls: list) -> tuple[str, list]:
     
     for url in urls:
         from time import perf_counter
+        from requests.exceptions import Timeout, ConnectionError, HTTPError, RequestException
         start = perf_counter()
         
-        try:
-            # Determine URL type and use appropriate method
-            url_lower = url.lower()
-            
-            if url_lower.endswith('.pdf'):
-                # PDF - download and extract text
-                status_html += f'<li>📄 PDF detected: {url[:50]}... (downloading)</li>'
-                resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
-                resp.raise_for_status()
-                duration = (perf_counter() - start) * 1000
-                status_html += f'<li style="color:#16a34a">✓ Downloaded PDF ({len(resp.content)//1024}KB, {duration:.0f}ms)</li>'
-                results.append({"url": url, "type": "pdf", "data": resp.content, "success": True})
-                session_logger.log_scraper(url, True, "pdf_download", duration, size_kb=len(resp.content)//1024)
+        # Retry logic for transient failures
+        max_retries = 2
+        last_error = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                # Determine URL type and use appropriate method
+                url_lower = url.lower()
                 
-            elif any(url_lower.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp', '.gif']):
-                # Image - download for Vision API
-                status_html += f'<li>🖼️ Image detected: {url[:50]}... (downloading)</li>'
-                resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
-                resp.raise_for_status()
-                duration = (perf_counter() - start) * 1000
-                status_html += f'<li style="color:#16a34a">✓ Downloaded image ({len(resp.content)//1024}KB, {duration:.0f}ms)</li>'
-                results.append({"url": url, "type": "image", "data": resp.content, "success": True})
-                session_logger.log_scraper(url, True, "image_download", duration, size_kb=len(resp.content)//1024)
-                
-            else:
-                # HTML page - scrape with BeautifulSoup
-                status_html += f'<li>🌐 Web page: {url[:50]}... (scraping)</li>'
-                resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
-                resp.raise_for_status()
-                
-                soup = BeautifulSoup(resp.text, "html.parser")
-                # Remove script/style tags
-                for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
-                    tag.decompose()
-                
-                title = soup.title.string.strip() if soup.title else "No title"
-                text = soup.get_text(separator="\n", strip=True)[:2000]
-                duration = (perf_counter() - start) * 1000
-                
-                status_html += f'<li style="color:#16a34a">✓ Scraped: {title[:60]} ({duration:.0f}ms)</li>'
-                results.append({
-                    "url": url, 
-                    "type": "web", 
-                    "title": title,
-                    "text": text, 
-                    "success": True
-                })
-                session_logger.log_scraper(url, True, "web_scrape", duration, title=title[:100])
-                
-        except Exception as e:
+                if url_lower.endswith('.pdf'):
+                    # PDF - download and extract text
+                    status_html += f'<li>📄 PDF detected: {url[:50]}... (downloading)</li>'
+                    resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
+                    resp.raise_for_status()
+                    duration = (perf_counter() - start) * 1000
+                    status_html += f'<li style="color:#16a34a">✓ Downloaded PDF ({len(resp.content)//1024}KB, {duration:.0f}ms)</li>'
+                    results.append({"url": url, "type": "pdf", "data": resp.content, "success": True})
+                    session_logger.log_scraper(url, True, "pdf_download", duration, size_kb=len(resp.content)//1024)
+                    break
+                    
+                elif any(url_lower.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp', '.gif']):
+                    # Image - download for Vision API
+                    status_html += f'<li>🖼️ Image detected: {url[:50]}... (downloading)</li>'
+                    resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
+                    resp.raise_for_status()
+                    duration = (perf_counter() - start) * 1000
+                    status_html += f'<li style="color:#16a34a">✓ Downloaded image ({len(resp.content)//1024}KB, {duration:.0f}ms)</li>'
+                    results.append({"url": url, "type": "image", "data": resp.content, "success": True})
+                    session_logger.log_scraper(url, True, "image_download", duration, size_kb=len(resp.content)//1024)
+                    break
+                    
+                else:
+                    # HTML page - scrape with BeautifulSoup
+                    status_html += f'<li>🌐 Web page: {url[:50]}... (scraping)</li>'
+                    resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
+                    resp.raise_for_status()
+                    
+                    soup = BeautifulSoup(resp.text, "html.parser")
+                    # Remove script/style tags
+                    for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+                        tag.decompose()
+                    
+                    title = soup.title.string.strip() if soup.title else "No title"
+                    text = soup.get_text(separator="\n", strip=True)[:2000]
+                    duration = (perf_counter() - start) * 1000
+                    
+                    status_html += f'<li style="color:#16a34a">✓ Scraped: {title[:60]} ({duration:.0f}ms)</li>'
+                    results.append({
+                        "url": url, 
+                        "type": "web", 
+                        "title": title,
+                        "text": text, 
+                        "success": True
+                    })
+                    session_logger.log_scraper(url, True, "web_scrape", duration, title=title[:100])
+                    break
+                    
+            except Timeout as e:
+                last_error = f"Timeout after 15s"
+                if attempt < max_retries:
+                    status_html += f'<li style="color:#f59e0b">⚠ Timeout, retrying ({attempt + 1}/{max_retries})...</li>'
+                    continue
+                    
+            except ConnectionError as e:
+                last_error = "Connection failed"
+                if attempt < max_retries:
+                    status_html += f'<li style="color:#f59e0b">⚠ Connection error, retrying ({attempt + 1}/{max_retries})...</li>'
+                    continue
+                    
+            except HTTPError as e:
+                last_error = f"HTTP {e.response.status_code}"
+                if e.response.status_code in (429, 502, 503, 504) and attempt < max_retries:
+                    status_html += f'<li style="color:#f59e0b">⚠ HTTP {e.response.status_code}, retrying ({attempt + 1}/{max_retries})...</li>'
+                    continue
+                    
+            except RequestException as e:
+                last_error = str(e)[:60]
+                if attempt < max_retries:
+                    status_html += f'<li style="color:#f59e0b">⚠ Network error, retrying ({attempt + 1}/{max_retries})...</li>'
+                    continue
+                    
+            except Exception as e:
+                last_error = str(e)[:60]
+                break
+        
+        # If all retries failed
+        if last_error:
             duration = (perf_counter() - start) * 1000
-            status_html += f'<li style="color:#dc2626">✗ Failed: {str(e)[:60]}</li>'
-            results.append({"url": url, "type": "error", "error": str(e), "success": False})
-            session_logger.log_scraper(url, False, "fetch", duration, error=str(e)[:100])
+            status_html += f'<li style="color:#dc2626">✗ Failed: {last_error}</li>'
+            results.append({"url": url, "type": "error", "error": last_error, "success": False})
+            session_logger.log_scraper(url, False, "fetch", duration, error=last_error)
     
     status_html += '</ul></div>'
     
@@ -1339,13 +1400,27 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
         inputs=[log_filter],
         outputs=[session_logs],
     )
+    
+    # Session logs download handler
+    download_logs_btn.click(
+        fn=download_session_log,
+        inputs=[],
+        outputs=[gr.File(), gr.Textbox(visible=False)],
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Launch
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _cleanup_on_exit():
+    """Cleanup session logger when app shuts down."""
+    if session_logger:
+        session_logger.close()
+        print("Session logger closed")
+
 if __name__ == "__main__":
+    atexit.register(_cleanup_on_exit)
     demo.launch(
         server_name="0.0.0.0",
         server_port=7860,

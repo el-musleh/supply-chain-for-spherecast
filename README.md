@@ -95,24 +95,63 @@ For a production-ready web interface, use the Gradio app:
 
 ```bash
 # Install UI dependencies
-pipx inject jupyterlab gradio beautifulsoup4 requests python-dotenv
+pipx inject jupyterlab gradio beautifulsoup4 requests python-dotenv plotly
 
 # Run the UI
 python agnes_ui.py
 ```
 
-The UI accepts 6 input types (text, image, audio, video, PDF, URL) and provides:
-- Multimodal compliance evaluation
-- RAG-augmented reasoning with source citations
-- Apply/Alternative/Reject confirmation flow
-- Decision history (last 10 evaluations)
+The UI opens on `http://localhost:7860` and features 4 tabs:
+
+### 🔍 Evaluate Substitution
+- **Inputs**: Ingredient A/B names, supplier names, and optional supporting evidence
+- **6 Input Types**: Text notes, CoA images, audio notes, facility videos, PDF documents, and URLs
+- **URL Detection**: Automatically detects URLs in notes and smart-routes them:
+  - PDF links → Downloaded and extracted
+  - Image links → Downloaded for Gemini Vision
+  - HTML pages → Scraped and text-extracted
+- **Progress Tracking**: Real-time progress bar during evaluation
+- **Confirmation Flow**: Apply / Show Alternative / Reject All before saving
+- **Alternatives**: Up to 3 alternative evaluations at higher temperatures
+- **RAG-Augmented**: Every evaluation cites regulatory sources [FDA], [USP], [NSF]
+
+### 📊 General Assessment
+- **Portfolio-Wide Health Check**: No inputs required
+- **Live DB Analytics**: KPI cards for companies, suppliers, SKUs, BOM links
+- **Interactive Charts**:
+  - Ingredient Fragmentation (most duplicated SKUs)
+  - Supplier BOM Coverage (concentration risk heatmap)
+- **AI Health Report**: Gemini-generated supply chain assessment with:
+  - Health score (1-10)
+  - Top consolidation opportunities
+  - Critical risks
+  - Quick wins
+  - Strategic recommendations
+
+### 📋 Decision History
+- **KPI Dashboard**: Total decisions, approved/rejected counts, average confidence
+- **Decision Table**: Last 10 stored verdicts with refresh capability
+- **Persistent Storage**: All decisions saved to `KB/decisions.json`
+
+### 🔍 Session Logs
+- **Real-Time Logging**: View session activity with structured JSON logs
+- **Filter by Level**: INFO, WARNING, ERROR, DEBUG
+- **Session Info**: Session ID and log file path displayed
+- **Download Logs**: Export session logs for debugging
+- **System Log**: Reference to `logs/system.log` for system-wide events
+
+### Troubleshooting
+- **KB file not found**: Run `python scrape_kb.py` to build the knowledge base
+- **Models not found**: Run `python download_models.py` for offline use (or let it download from HF Hub)
+- **API key error**: Set `GEMINI_API_KEY` in `.env` file
+- **Port 7860 in use**: Change port in `agnes_ui.py` or stop conflicting process
 
 **Or use the production launcher with watchdog:**
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
-This auto-checks prerequisites, logs to `logs/agnes_ui.log`, opens your browser, and auto-restarts on crash.
+This auto-checks prerequisites (.env, KB files, models/), logs to `logs/agnes_ui.log`, opens your browser, and auto-restarts on crash.
 
 ## Kernel Selection (Windsurf / VS Code)
 

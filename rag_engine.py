@@ -123,6 +123,8 @@ def build_index(kb_path: str = "KB/regulatory_docs.json") -> RagIndex:
     _emb_path  = str(_emb_local) if _emb_local.exists() else "all-MiniLM-L6-v2"
     _emb_src   = "local" if _emb_local.exists() else "HF Hub"
     print(f"  Loading embedding model ({_emb_src}) ...", end=" ", flush=True)
+    if not _emb_local.exists():
+        print(f"\n  💡 Tip: Run 'python download_models.py' for offline use", end=" ", flush=True)
     model = SentenceTransformer(_emb_path)
     print("done")
 
