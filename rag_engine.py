@@ -117,9 +117,13 @@ def build_index(kb_path: str = "KB/regulatory_docs.json") -> RagIndex:
 
     from transformers import logging as _hf_logging
     _hf_logging.set_verbosity_error()
+    _hf_logging.disable_progress_bar()
 
-    print(f"  Loading embedding model (all-MiniLM-L6-v2) ...", end=" ", flush=True)
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    _emb_local = Path(__file__).parent / "models" / "all-MiniLM-L6-v2"
+    _emb_path  = str(_emb_local) if _emb_local.exists() else "all-MiniLM-L6-v2"
+    _emb_src   = "local" if _emb_local.exists() else "HF Hub"
+    print(f"  Loading embedding model ({_emb_src}) ...", end=" ", flush=True)
+    model = SentenceTransformer(_emb_path)
     print("done")
 
     # Build combined text for each document
@@ -255,8 +259,11 @@ def rerank(query: str, docs: list[dict], top_n: int = 3) -> list[dict]:
     try:
         from transformers import logging as _hf_logging
         _hf_logging.set_verbosity_error()
+        _hf_logging.disable_progress_bar()
         from sentence_transformers import CrossEncoder
-        ce = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+        _ce_local = Path(__file__).parent / "models" / "cross-encoder-reranker"
+        _ce_path  = str(_ce_local) if _ce_local.exists() else "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        ce = CrossEncoder(_ce_path)
 
         pairs = [(query, f"{doc['title']} {doc['content'][:500]}") for doc in docs]
         scores = ce.predict(pairs, show_progress_bar=False)

@@ -2,6 +2,12 @@
 *.sqlite-journal
 *.db-journal
 
+# Local model cache (~175 MB — re-generate with: python download_models.py)
+models/
+
+# Server logs
+logs/
+
 # Python
 __pycache__/
 *.py[cod]

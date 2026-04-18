@@ -134,6 +134,19 @@ else
     }
 fi
 
+# Local model cache
+MODELS_DIR="$SCRIPT_DIR/models"
+if [[ -d "$MODELS_DIR/all-MiniLM-L6-v2" && -d "$MODELS_DIR/cross-encoder-reranker" ]]; then
+    MODEL_MB=$(du -sm "$MODELS_DIR" 2>/dev/null | cut -f1 || echo "?")
+    ok "Local models cached (${MODEL_MB} MB) — offline mode active"
+else
+    warn "Local models not found — downloading once (~175 MB) …"
+    python3 "$SCRIPT_DIR/download_models.py" && ok "Models downloaded to $MODELS_DIR" || {
+        err "Model download failed. Check network and retry, or run: python download_models.py"
+        exit 1
+    }
+fi
+
 # Log dir
 mkdir -p "$LOG_DIR"
 ok "Log directory: $LOG_DIR"
