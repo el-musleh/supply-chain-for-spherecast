@@ -75,6 +75,18 @@ pipx inject jupyterlab faiss-cpu sentence-transformers rank-bm25
 - Structured output: `response_mime_type="application/json"` + `temperature=0.2` — no markdown fence stripping needed.
 - The system prompt in Cell 5 (`AGNES_SYSTEM_PROMPT`) hard-encodes compliance guardrails. Do not soften them — hallucination control is a primary judging criterion.
 
+### Model Deployment: Cloud + Local Hybrid
+
+**Cloud (Gemini)**: Compliance evaluation, multimodal extraction, health assessment via Google GenAI API.
+
+**Local (Cached Offline)**:
+- `all-MiniLM-L6-v2` (384-dim) — Sentence embeddings for RAG vector search (~90 MB, ~400-600 MB RAM)
+- `ms-marco-MiniLM-L-6-v2` — Cross-encoder reranking (~90 MB, ~300-500 MB RAM)
+- FAISS HNSW + BM25 — Vector and keyword search (in-memory)
+- Total local RAM: ~700 MB - 1.1 GB
+
+Cache models with: `python download_models.py` (run once after cloning)
+
 ## Consolidation Logic
 
 Cell 6 ranks suppliers by `bom_appearances_covered × compliance_weight`. Suppliers with LLM verdict `APPROVE`, `APPROVE_WITH_CONDITIONS`, or `HUMAN_REVIEW_REQUIRED` are included; only `REJECT` is excluded.

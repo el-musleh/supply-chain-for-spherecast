@@ -131,13 +131,27 @@ Raw material vendors in the database include:
 - Raw material SKUs follow pattern: `RM-C{CompanyId}-{ingredient-name}-{8hexhash}`
 - Example: `RM-C30-vitamin-d3-cholecalciferol-559c9699`
 
-### AI Model
-- **Model**: Gemini Flash Latest via Google GenAI SDK
-- **API**: Google GenAI (not the older google-generativeai package)
-- **Configuration**: `response_mime_type="application/json"`, `temperature=0.2`
-- **System Prompt**: Real regulatory context (RAG) + compliance guardrails + grounding rules
-- **RAG Layer**: FAISS HNSW + BM25 hybrid search, cross-encoder reranker, source citations in every evidence trail
-- **Historical Memory**: `KB/decisions.json` — cumulative verdict store with precedent retrieval
+### AI Model: Cloud + Local Hybrid
+
+**Cloud Models (Google GenAI API)**
+- **Gemini Flash** (`gemini-flash-latest`) — Compliance evaluation, multimodal extraction (CoA images, audio, video, PDFs), health assessment
+- Requires `GEMINI_API_KEY` from `.env` and internet connection
+
+**Local Models (Cached Offline)**
+- **all-MiniLM-L6-v2** (384-dim) — Sentence embeddings for RAG vector search (~90 MB, ~400-600 MB RAM)
+- **ms-marco-MiniLM-L-6-v2** — Cross-encoder reranking of retrieved docs (~90 MB, ~300-500 MB RAM)
+- **FAISS HNSW** — Vector similarity search (in-memory + disk index)
+- **BM25 Okapi** — Keyword retrieval (in-memory)
+
+**Total local RAM usage**: ~700 MB - 1.1 GB (both models loaded)
+
+Cache local models with: `python download_models.py`
+
+**Configuration**
+- `response_mime_type="application/json"`, `temperature=0.2`
+- System prompt includes: Real regulatory context (RAG) + compliance guardrails + grounding rules
+- RAG layer: FAISS HNSW + BM25 hybrid search, cross-encoder reranker, source citations in every evidence trail
+- Historical memory: `KB/decisions.json` — cumulative verdict store with precedent retrieval
 
 ### Key Algorithms
 

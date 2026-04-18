@@ -12,6 +12,7 @@ This guide provides developers with detailed instructions for setting up, runnin
 - **Python**: 3.10 or higher
 - **Memory**: 4GB RAM minimum (8GB recommended)
 - **Disk Space**: 500MB for repository and dependencies
+- **Additional RAM for RAG**: ~700 MB - 1.1 GB (local embedding + reranker models)
 
 ### Filesystem Considerations
 
@@ -56,6 +57,22 @@ python -c "import google.genai; print('google-genai:', google.genai.__version__)
 python -c "import pandas; print('pandas:', pandas.__version__)"
 python -c "import dotenv; print('python-dotenv: OK')"
 ```
+
+### Cache Local RAG Models
+
+After installing dependencies, cache the local ML models for offline operation:
+
+```bash
+python download_models.py
+```
+
+This downloads ~175 MB total into `models/`:
+- `all-MiniLM-L6-v2` (~90 MB) — sentence embeddings for RAG vector search
+- `cross-encoder-ms-marco-MiniLM-L-6-v2` (~90 MB) — cross-encoder reranker
+
+**RAM usage**: ~700 MB - 1.1 GB when both models are loaded.
+
+This step is optional but recommended — models will download automatically on first use if skipped.
 
 ## Configuration
 

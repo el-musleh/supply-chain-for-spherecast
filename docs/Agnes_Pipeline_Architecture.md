@@ -1194,6 +1194,10 @@ faithfulness = grounded_items / total_evidence_items
 - Pandas DataFrames: < 50MB total
 - SQLite connection: Minimal
 - No large intermediate objects
+- Local RAG models (optional): ~700 MB - 1.1 GB when loaded
+  - `all-MiniLM-L6-v2` (embeddings): ~400-600 MB RAM
+  - `ms-marco-MiniLM-L-6-v2` (reranker): ~300-500 MB RAM
+- Cache local models with: `python download_models.py`
 
 ### Reproducibility
 - Random number generators seeded with supplier name hash
