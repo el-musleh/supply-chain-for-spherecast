@@ -863,6 +863,58 @@ python agnes_ui.py
 
 ---
 
+### 10. Production Readiness Improvements
+
+**Original Approach**: Limited error handling, no unified setup, minimal logging documentation.
+
+**Agnes 2.0 Enhancement**:
+- **Error Handling**: Graceful degradation when KB files or models are missing
+- **Session Management**: Automatic session logger cleanup on app shutdown
+- **URL Resilience**: Retry logic with specific exception handling (Timeout, ConnectionError, HTTPError)
+- **Unified Setup**: `full_setup.sh` script for one-command first-time setup
+- **Logging Documentation**: Comprehensive `docs/Logging_Architecture.md` with dual-file logging details
+
+**Technical Implementation**:
+```python
+# KB file check
+if not KB_PATH.exists():
+    rag_index = None
+    print(f"  ⚠ KB file not found: {KB_PATH}")
+    print(f"  Run: python scrape_kb.py")
+
+# Session logger cleanup
+def _cleanup_on_exit():
+    if session_logger:
+        session_logger.close()
+atexit.register(_cleanup_on_exit)
+
+# URL fetch with retry logic
+for attempt in range(max_retries + 1):
+    try:
+        resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
+        resp.raise_for_status()
+        break
+    except Timeout as e:
+        if attempt < max_retries:
+            continue  # Retry
+```
+
+**Business Value**:
+- **Reliability**: Graceful degradation prevents app crashes
+- **User Experience**: Clear error messages guide users to fix issues
+- **Onboarding**: Unified setup script reduces setup time
+- **Debugging**: Session logs enable troubleshooting
+- **Resilience**: Retry logic handles transient network failures
+
+**Unified Setup Script**:
+```bash
+chmod +x full_setup.sh
+./full_setup.sh
+```
+Checks .env, builds KB, downloads models, patches notebook, and provides summary.
+
+---
+
 ## Summary of Improvements
 
 | Feature | Original Agnes | Agnes 2.0 | Business Impact |
@@ -884,6 +936,11 @@ python agnes_ui.py
 | **Historical Memory** | None | Persistent verdict store + precedent retrieval | Cross-evaluation consistency |
 | **Quality Evaluation** | None | RAGAS-lite (Faithfulness, Relevance, Recall) | Measurable decision quality |
 | **Web Interface** | None | Gradio app with 6 input types | Accessibility for non-technical users |
+| **Error Handling** | Basic | Graceful degradation with clear messages | Prevents app crashes |
+| **Session Management** | None | Automatic cleanup + log download | Better debugging and audit trails |
+| **URL Resilience** | None | Retry logic with specific exceptions | Handles transient network failures |
+| **Unified Setup** | Manual steps | One-command full_setup.sh | Faster onboarding |
+| **Logging Docs** | None | Comprehensive Logging_Architecture.md | Better system understanding |
 
 ## Competitive Advantages
 
@@ -901,4 +958,5 @@ python agnes_ui.py
 - `Agnes_Pipeline_Architecture.md` - Technical pipeline documentation
 - `RAG_Architecture.md` - Full RAG system design, KB contents, and production upgrade path
 - `Self_Maintenance.md` - Guide to self-healing, monitoring, and explanation capabilities
+- `Logging_Architecture.md` - Unified logging infrastructure documentation
 - `Technical_Implementation_Guide.md` - Setup and usage instructions
