@@ -805,6 +805,64 @@ Three quality metrics computed per evaluation without the RAGAS library:
 
 ---
 
+### 9. Gradio Web Interface (agnes_ui.py)
+
+**Original Approach**: Notebook-only interface requiring JupyterLab to run evaluations.
+
+**Agnes 2.0 Enhancement**:
+- Production-ready Gradio web app (`agnes_ui.py`) on port 7860
+- Accepts 6 input types: text, image (CoA), audio, video, PDF, and URLs
+- Auto-detects URLs in notes field and smart-routes them (HTML→text, PDF→bytes, image→bytes)
+- Multimodal compliance extraction via Gemini Vision from uploaded documents
+- RAG-augmented evaluations with source citations
+- Confirmation flow: Apply / Show Alternative / Reject All before persisting to KB/decisions.json
+- Session logging with structured JSON logs for debugging
+- General Assessment tab for portfolio-wide health checks with live DB analytics
+- Decision History tab showing stored verdicts with refresh capability
+
+**Technical Implementation**:
+```python
+# Smart URL routing
+def _resolve_url(url: str) -> tuple[types.Part | None, str]:
+    # Detects Content-Type via HEAD request
+    # Routes PDF → Part.from_bytes(mime="application/pdf")
+    # Routes image → Part.from_bytes(mime=image/jpeg)
+    # Routes HTML → BeautifulSoup text extraction
+    
+# Multimodal input assembly
+def _build_parts(notes, coa_image, audio_file, video_file, pdf_file):
+    # Interleaves all inputs into Gemini Parts
+    # Handles 15MB inline limit for large files
+    
+# Confirmation flow
+def apply_handler(state):
+    # User clicks "Apply & Save"
+    # Calls store_decision() → KB/decisions.json
+    # Updates history table
+
+def alternative_handler(state):
+    # User clicks "Show Alternative"
+    # Re-evaluates at higher temperature (0.4, 0.5, 0.6)
+    # Excludes previous verdict from LLM
+    # Up to 3 alternatives allowed
+```
+
+**Business Value**:
+- **Accessibility**: No JupyterLab required — web browser interface
+- **Stakeholder Engagement**: Business users can run evaluations without coding
+- **Audit Trail**: Confirmation flow prevents accidental decision persistence
+- **Multimodal**: Upload real CoA PDFs, images, and facility videos for richer compliance data
+- **Portfolio View**: General Assessment tab provides executive dashboard across all ingredients
+
+**Startup**:
+```bash
+python agnes_ui.py
+# Opens on http://localhost:7860
+# Requires: GEMINI_API_KEY in .env, KB/regulatory_docs.json, models/ cached
+```
+
+---
+
 ## Summary of Improvements
 
 | Feature | Original Agnes | Agnes 2.0 | Business Impact |
@@ -825,6 +883,7 @@ Three quality metrics computed per evaluation without the RAGAS library:
 | **RAG Knowledge Base** | None | 20 real regulatory docs (FDA, USP, NSF, Halal) | Grounded, source-cited decisions |
 | **Historical Memory** | None | Persistent verdict store + precedent retrieval | Cross-evaluation consistency |
 | **Quality Evaluation** | None | RAGAS-lite (Faithfulness, Relevance, Recall) | Measurable decision quality |
+| **Web Interface** | None | Gradio app with 6 input types | Accessibility for non-technical users |
 
 ## Competitive Advantages
 

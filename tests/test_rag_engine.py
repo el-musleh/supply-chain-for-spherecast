@@ -32,21 +32,21 @@ def mock_kb_data():
             "id": "doc1",
             "source": "USP",
             "title": "Vitamin D3 Monograph",
-            "text": "USP Vitamin D3 (cholecalciferol) requires 97-103% potency assay. Heavy metals must be below 10ppm.",
+            "content": "USP Vitamin D3 (cholecalciferol) requires 97-103% potency assay. Heavy metals must be below 10ppm.",
             "type": "monograph",
         },
         {
             "id": "doc2", 
             "source": "FDA",
             "title": "21 CFR 111 - GMP Requirements",
-            "text": "Dietary supplement manufacturers must follow current Good Manufacturing Practices (CGMP).",
+            "content": "Dietary supplement manufacturers must follow current Good Manufacturing Practices (CGMP).",
             "type": "regulation",
         },
         {
             "id": "doc3",
             "source": "NSF",
             "title": "NSF/ANSI 173",
-            "text": "Independent testing and certification program for dietary supplements.",
+            "content": "Independent testing and certification program for dietary supplements.",
             "type": "standard",
         },
     ]
@@ -73,7 +73,7 @@ class TestIndexBuilding:
     def test_build_index_creates_faiss(self, temp_kb_file):
         """Should create FAISS index."""
         idx = build_index(temp_kb_file)
-        assert idx.vector_index is not None
+        assert idx.faiss_index is not None
     
     def test_build_index_creates_bm25(self, temp_kb_file):
         """Should create BM25 index."""
@@ -130,7 +130,7 @@ class TestReranking:
             reranked = rerank("supplement testing", initial, top_n=2)
             for doc in reranked:
                 assert "id" in doc
-                assert "title" in doc or "text" in doc
+                assert "title" in doc or "content" in doc
 
 
 class TestContextFormatting:

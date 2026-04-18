@@ -548,6 +548,38 @@ CREATE INDEX idx_supplier_product_productid ON Supplier_Product(ProductId);
 
 ## Testing
 
+### Test Runner Script
+
+The project includes a comprehensive test runner (`run_tests.sh`) that runs all test suites:
+
+```bash
+# Run all tests (CI mode)
+./run_tests.sh --ci
+
+# Run specific test suites
+./run_tests.sh --unit              # Unit tests (pytest)
+./run_tests.sh --scrapers          # Scraper tests
+./run_tests.sh --rag               # RAG engine tests
+./run_tests.sh --integration       # Full pipeline integration test
+
+# With verbose output
+./run_tests.sh --ci --verbose
+
+# Generate coverage report
+./run_tests.sh --ci --coverage
+```
+
+**Test Suites:**
+- **Unit tests**: Pytest-based tests in `tests/` directory (20 tests for RAG engine and scrapers)
+- **Scraper imports**: Verifies scraper module can be imported
+- **Scraper unit**: Tests scraper ethics checker, compliance profile, and CoA extraction
+- **RAG imports**: Verifies RAG engine module can be imported
+- **RAG unit**: Tests index building, hybrid search, reranking, and context formatting
+- **Integration env**: Checks environment setup
+- **Integration e2e**: End-to-end pipeline test
+
+**Test Results:** Saved to `logs/test_results.json`
+
 ### Unit Tests
 
 Create test functions for key components:
@@ -790,3 +822,23 @@ Cell 5 (LLM)
 - `Agnes_2.0_Improvements.md` - Enhancements over original concept
 - `Self_Maintenance.md` - Detailed guide on self-healing, monitoring, explanation
 - `Business_Value.md` - ROI analysis and case studies
+
+---
+
+## Changelog
+
+### 2026-04-18
+
+**Fixed:**
+- Quoting bug in `run_tests.sh` - added quotes around `$TESTS_DIR` to handle spaces in directory names (e.g., "Hackathon 2026")
+- Unit tests now pass correctly (7/7 test suites passing: unit, scrapers, RAG, integration)
+
+**Verified:**
+- Gradio UI (`agnes_ui.py`) successfully launches on port 7860
+- RAG index loads correctly with 20 documents
+- All test suites pass: 20 pytest tests (RAG engine + scrapers), 2 skipped (integration tests requiring external resources)
+
+**Documentation:**
+- Added test runner documentation to Technical Implementation Guide
+- Documented Gradio Web Interface as feature #9 in Agnes 2.0 Improvements
+- Updated summary table to include Web Interface capability

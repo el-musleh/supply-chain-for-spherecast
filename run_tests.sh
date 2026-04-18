@@ -125,7 +125,7 @@ run_unit_tests() {
     [[ "$CI_MODE" == true ]] && pytest_args="-v --tb=short"
     [[ "$RUN_COVERAGE" == true ]] && pytest_args="$pytest_args --cov=. --cov-report=term-missing --cov-report=html:$LOGS_DIR/coverage"
     
-    output=$(cd "$SCRIPT_DIR" && python -m pytest $TESTS_DIR $pytest_args 2>&1)
+    output=$(cd "$SCRIPT_DIR" && python -m pytest "$TESTS_DIR" $pytest_args 2>&1)
     local exit_code=$?
     
     local end=$(date +%s%N)
