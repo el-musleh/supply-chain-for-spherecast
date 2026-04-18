@@ -333,6 +333,185 @@ Result: Supplier B wins despite slightly lower compliance
 
 ---
 
+### 6. LLM Self-Maintenance Capabilities
+
+**Purpose**: Enable Agnes to monitor, heal, and explain her own reasoning for enhanced trustworthiness, systematic hallucination control, and explainable AI — directly addressing hackathon judging criteria.
+
+**The Three Capabilities**:
+
+#### 6.1 Self-Healing (Cell 5)
+
+**Problem**: LLM API calls can fail due to network issues, rate limits, or transient errors. Without handling, the pipeline breaks.
+
+**Solution**: Exponential backoff retry logic with graceful fallback.
+
+**Implementation**:
+```python
+def evaluate_substitutability_with_healing(
+    ...,
+    max_retries: int = 3,
+) -> dict:
+    temperatures = [0.2, 0.1, 0.3]  # Vary per attempt
+    
+    for attempt in range(max_retries):
+        try:
+            result = evaluate_substitutability(
+                ..., 
+                temperature=temperatures[attempt]
+            )
+            result["_meta"]["retry_attempt"] = attempt + 1
+            result["_meta"]["healing_applied"] = (attempt > 0)
+            return result
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)  # 1s, 2s, 4s
+            else:
+                # Final fallback: conservative safe response
+                return create_fallback_response(args, str(e))
+```
+
+**Retry Strategy**:
+- Attempt 1: Temperature 0.2, wait 1s on failure
+- Attempt 2: Temperature 0.1, wait 2s on failure  
+- Attempt 3: Temperature 0.3, fallback if fails
+
+**Fallback Response**:
+```json
+{
+  "substitutable": false,
+  "confidence": 0.0,
+  "recommendation": "HUMAN_REVIEW_REQUIRED",
+  "reasoning": "Self-healing: LLM API failed after 3 retry attempts...",
+  "_meta": {
+    "healing_applied": true,
+    "fallback_reason": "API failure"
+  }
+}
+```
+
+---
+
+#### 6.2 Self-Monitoring (Cell 5.5)
+
+**Problem**: Without systematic tracking, low-confidence LLM outputs can slip through unnoticed, leading to poor decisions.
+
+**Solution**: Real-time confidence tracking with persistent logging.
+
+**The `AgnesMonitor` Class**:
+```python
+class AgnesMonitor:
+    LOG_FILE = "agnes_monitoring_log.json"
+    LOW_CONFIDENCE_THRESHOLD = 0.7
+    
+    def record(self, eval_result: dict, context: dict):
+        """Store evaluation with metadata."""
+        
+    def analyze_confidence(self) -> dict:
+        """Compute mean, min, max, low-count statistics."""
+        
+    def health_check(self) -> str:
+        """Return HEALTHY / CAUTION / WARNING status."""
+        
+    def display_report(self):
+        """Show formatted monitoring report."""
+```
+
+**Tracked Metrics**:
+- Confidence score and recommendation type
+- Compliance status and gap counts
+- Token usage (input/output)
+- Retry attempts and healing status
+- Ingredient and supplier pairs
+- Timestamps and session tracking
+
+**Health Status Levels**:
+| Status | Condition | Action Required |
+|--------|-----------|-----------------|
+| **HEALTHY** | No low-confidence evals, mean ≥ 80% | None |
+| **CAUTION** | Mean confidence < 80% | Review recommended |
+| **WARNING** | Any evaluation < 0.7 threshold | Manual review required |
+
+**Report Output**:
+```
+======================================================================
+  AGNES SELF-MONITORING REPORT
+======================================================================
+  Health Status    : HEALTHY
+  Total Evaluations: 2
+  Mean Confidence  : 96.5%
+  Low Confidence   : 0 (0.0%)
+  Retries Required : 0
+```
+
+---
+
+#### 6.3 Self-Explanation (Cell 7.5)
+
+**Problem**: Technical evidence trails are too detailed for business stakeholders; procurement teams need concise, actionable summaries.
+
+**Solution**: Dual evidence trails — technical (Cell 7) and business (Cell 7.5).
+
+**Implementation**:
+```python
+EXECUTIVE_SUMMARY_PROMPT = """You are a procurement strategy advisor...
+Summarize the following supply chain recommendation...
+
+CONSOLIDATION DATA:
+- Ingredient: {ingredient}
+- Companies Affected: {company_count}
+...
+
+Provide:
+- executive_summary: strategic overview
+- action_items: specific actions
+- financial_impact: savings opportunity
+- risk_considerations: key risks
+- next_steps: immediate action"""
+
+def generate_executive_summary(context: dict) -> dict:
+    response = client.models.generate_content(
+        model="gemini-flash-latest",
+        contents=EXECUTIVE_SUMMARY_PROMPT.format(**context),
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.3,
+        ),
+    )
+    return json.loads(response.text)
+```
+
+**Output Example**:
+```json
+{
+  "executive_summary": "Consolidation of vitamin-d3-cholecalciferol...",
+  "action_items": [
+    "Initiate supplier negotiation with Prinova USA",
+    "Validate USP and Halal certification requirements",
+    "Calculate volume-based pricing discount potential"
+  ],
+  "financial_impact": "Estimated 12-18% cost reduction...",
+  "risk_considerations": "Compliance gaps in PureBulk option...",
+  "next_steps": "Schedule procurement alignment meeting..."
+}
+```
+
+---
+
+**Business Value**:
+- **Trustworthiness**: Demonstrates systematic approach to AI safety (key judging criteria)
+- **Evidence Trails**: Dual technical + business explanations
+- **Uncertainty Handling**: Graceful degradation and human escalation
+- **Self-Awareness**: System monitors its own performance
+- **Explainable AI**: Clear reasoning for every recommendation
+
+**Hackathon Judging Criteria Addressed**:
+1. ✅ **Trustworthiness** — Confidence tracking and health scoring
+2. ✅ **Evidence Trails** — Dual technical and business explanations
+3. ✅ **Uncertainty Handling** — Retry logic and human escalation
+4. ✅ **Self-Improvement** — Monitoring enables iterative refinement
+
+---
+
 ## Technical Improvements
 
 ### 1. Structured JSON Output from Gemini
@@ -568,6 +747,9 @@ if result["confidence"] < 0.7:
 | **Guardrails** | Basic | Hard-encoded rules | Safety-first approach |
 | **Evidence** | Optional | Required | Explainable AI |
 | **Confidence** | Binary | Score-based | Risk-aware decisions |
+| **Self-Healing** | None | 3-attempt retry with fallback | Robust error recovery |
+| **Self-Monitoring** | None | Real-time confidence tracking | Systematic hallucination control |
+| **Self-Explanation** | None | Dual evidence trails (technical + business) | Explainable AI for stakeholders |
 
 ## Competitive Advantages
 
@@ -583,4 +765,5 @@ if result["confidence"] < 0.7:
 - `Project_Overview.md` - High-level project introduction
 - `Database_Complete_Guide.md` - Database schema and relationships
 - `Agnes_Pipeline_Architecture.md` - Technical pipeline documentation
+- `Self_Maintenance.md` - Guide to self-healing, monitoring, and explanation capabilities
 - `Technical_Implementation_Guide.md` - Setup and usage instructions

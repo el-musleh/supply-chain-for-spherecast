@@ -649,10 +649,127 @@ python -m ipykernel install --user --name=agnes
 - Reduce prompt length
 - Enable caching for repeated runs
 
+### Issue: All LLM Calls Retrying
+
+**Symptoms**: Every evaluation shows `healing_applied: True` with 3 retry attempts
+
+**Solution**:
+- Check API key validity: `cat .env | grep GEMINI`
+- Verify internet connectivity: `ping google.com`
+- Check Google AI Studio status and rate limits
+- Review error messages in Cell 5 output
+
+### Issue: Monitoring Log Not Created
+
+**Symptoms**: `agnes_monitoring_log.json` missing after running Cell 5.5
+
+**Solution**:
+- Check write permissions: `ls -la .` (should show write permission)
+- Verify Cell 5.5 ran successfully
+- Check disk space: `df -h`
+- Try manual save: Run `monitor.save_to_disk()` in a new cell
+
+### Issue: Executive Summary Falls Back
+
+**Symptoms**: Cell 7.5 shows "⚠ Note: Generated using fallback"
+
+**Solution**:
+- Verify Cells 5 and 7 ran successfully first
+- Check that `df_recommendation` is not empty
+- Review API key and connectivity
+- Check if evaluation results exist: `print(eval_within_cluster.keys())`
+
+---
+
+## Self-Maintenance Implementation Details
+
+### Self-Healing Configuration
+
+**Parameters** (in Cell 5):
+```python
+max_retries = 3              # Number of retry attempts
+temperatures = [0.2, 0.1, 0.3]  # Temperature per attempt
+sleep_base = 1               # Base for exponential backoff (2^attempt seconds)
+```
+
+**Adjusting Retry Behavior**:
+```python
+# More aggressive retry (5 attempts)
+eval_result = evaluate_substitutability_with_healing(
+    ..., max_retries=5
+)
+
+# Disable healing (direct call)
+eval_result = evaluate_substitutability(...)  # No retry logic
+```
+
+### Self-Monitoring Configuration
+
+**Parameters** (in Cell 5.5, `AgnesMonitor` class):
+```python
+LOG_FILE = "agnes_monitoring_log.json"  # Log filename
+LOW_CONFIDENCE_THRESHOLD = 0.7        # Warning threshold
+```
+
+**Adjusting Threshold**:
+```python
+monitor = AgnesMonitor()
+monitor.LOW_CONFIDENCE_THRESHOLD = 0.8  # Stricter
+monitor.LOW_CONFIDENCE_THRESHOLD = 0.6  # More lenient
+```
+
+**Log File Schema**:
+```json
+{
+  "last_updated": "2026-04-18T11:30:00",
+  "current_session": "2026-04-18T11:10:00",
+  "evaluations": [
+    {
+      "timestamp": "2026-04-18T11:15:30",
+      "session": "2026-04-18T11:10:00",
+      "confidence": 0.95,
+      "recommendation": "REJECT",
+      "retry_attempt": 1,
+      "healing_applied": false,
+      ...
+    }
+  ]
+}
+```
+
+### Self-Explanation Configuration
+
+**Parameters** (in Cell 7.5):
+```python
+temperature = 0.3  # Higher = more creative, Lower = more deterministic
+model = "gemini-flash-latest"  # Can use gemini-1.5-pro for longer outputs
+```
+
+### Integration Points
+
+**Data Flow Between Cells**:
+```
+Cell 5 (LLM) 
+  → produces eval_within_cluster, eval_cross_cluster
+  → used by Cell 5.5 (monitor.record())
+  → used by Cell 6 (consolidation)
+  → used by Cell 7 (report)
+  → used by Cell 7.5 (generate_executive_summary())
+```
+
+**Monitoring Log Lifecycle**:
+1. Cell 5.5: Initialize monitor → Load existing log
+2. Cell 5.5: Record evaluations → Append to evaluations list
+3. Cell 5.5: Save to disk → Write JSON file
+4. Next run: Load accumulated history
+
+---
+
 ## Related Documents
 
 - `Project_Overview.md` - High-level project introduction
 - `Database_Complete_Guide.md` - Database schema and relationships
 - `Agnes_Pipeline_Architecture.md` - Technical pipeline documentation
 - `Agnes_2.0_Improvements.md` - Enhancements over original concept
+- `Self_Maintenance.md` - Detailed guide on self-healing, monitoring, explanation
 - `Business_Value.md` - ROI analysis and case studies

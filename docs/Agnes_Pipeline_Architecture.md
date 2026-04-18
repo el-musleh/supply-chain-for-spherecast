@@ -24,6 +24,12 @@ Agnes 2.0 implements a 10-cell pipeline that transforms fragmented supply chain 
                                               │
                                               ▼
                                     ┌──────────┐
+                                    │ Cell 5.5 │
+                                    │ Monitor  │
+                                    └──────────┘
+                                              │
+                                              ▼
+                                    ┌──────────┐
                                     │  Cell 6  │
                                     │  Optimize│
                                     └──────────┘
@@ -32,6 +38,12 @@ Agnes 2.0 implements a 10-cell pipeline that transforms fragmented supply chain 
                                     ┌──────────┐
                                     │  Cell 7  │
                                     │  Report  │
+                                    └──────────┘
+                                              │
+                                              ▼
+                                    ┌──────────┐
+                                    │ Cell 7.5 │
+                                    │ Explain  │
                                     └──────────┘
 ```
 
@@ -438,6 +450,84 @@ while originating from the same supplier, it is a low-risk candidate for consoli
 - Confidence scoring enables risk-based escalation
 - Compliance guardrails prevent dangerous downgrades
 - JSON output eliminates markdown parsing complexity
+- **Self-healing retry logic** with exponential backoff (3 attempts, temperature tuning)
+
+---
+
+### Cell 5.5: Self-Monitoring & Confidence Tracking
+
+**Purpose**: Real-time monitoring of LLM evaluation quality, tracking confidence scores, token usage, and healing statistics to ensure trustworthiness and enable systematic hallucination control.
+
+**Key Operations**:
+- Initialize `AgnesMonitor` class with persistent JSON logging
+- Record evaluation metadata (confidence, recommendation, compliance, tokens)
+- Analyze confidence distribution and flag low-confidence evaluations (< 0.7 threshold)
+- Generate health report (HEALTHY/CAUTION/WARNING status)
+- Display recent evaluations table with key metrics
+- Persist monitoring log to `agnes_monitoring_log.json`
+
+**Code Structure**:
+```python
+class AgnesMonitor:
+    LOG_FILE = "agnes_monitoring_log.json"
+    LOW_CONFIDENCE_THRESHOLD = 0.7
+    
+    def __init__(self): ...
+    def record(self, eval_result, context): ...
+    def analyze_confidence(self) -> dict: ...
+    def health_check(self) -> str: ...
+    def display_report(self): ...
+    def save_to_disk(self): ...
+
+# Usage
+monitor = AgnesMonitor()
+monitor.record(eval_within_cluster, {"type": "within_cluster"})
+monitor.record(eval_cross_cluster, {"type": "cross_cluster"})
+monitor.display_report()
+monitor.save_to_disk()
+```
+
+**Tracked Metrics**:
+- Confidence score, recommendation type, compliance status
+- Input/output token counts
+- Retry attempts and healing status
+- Ingredient and supplier pairs
+- Timestamp and session tracking
+
+**Output - Health Report**:
+```
+======================================================================
+  AGNES SELF-MONITORING REPORT
+======================================================================
+  Health Status    : HEALTHY
+  Session Start    : 2026-04-18T11:10:00
+  Total Evaluations: 2
+
+──────────────────────────────────────────────────────────────────────
+CONFIDENCE ANALYSIS
+──────────────────────────────────────────────────────────────────────
+  Mean Confidence  : 96.5%
+  Min / Max        : 95.0% / 98.0%
+  Low Confidence   : 0 (0.0%)
+
+──────────────────────────────────────────────────────────────────────
+SELF-HEALING STATISTICS
+──────────────────────────────────────────────────────────────────────
+  Retries Required : 0
+  Avg Retry Count  : 1.0
+
+──────────────────────────────────────────────────────────────────────
+RECENT EVALUATIONS
+──────────────────────────────────────────────────────────────────────
+  context_type      confidence  recommendation           compliance_met  healing_applied
+  within_cluster    0.95        REJECT                   False           False
+  cross_cluster     0.98        APPROVE                  True            False
+```
+
+**Health Status Levels**:
+- **HEALTHY**: No low-confidence evaluations, mean ≥ 80%
+- **CAUTION**: Mean confidence < 80%
+- **WARNING**: Any evaluation below 0.7 threshold
 
 ---
 
@@ -598,6 +688,125 @@ Even when consolidation is rejected, the report provides value by:
 - Identifying specific missing certifications
 - Quantifying the opportunity cost (33 BOMs, 17 companies)
 - Providing actionable next steps (certification acquisition)
+
+---
+
+### Cell 7.5: Executive Summary Generator (Self-Explanation)
+
+**Purpose**: Generate LLM-powered business-friendly explanations of recommendations, creating a dual evidence trail (technical + business) for procurement teams and leadership.
+
+**Key Operations**:
+- Build context from evaluation results and recommendation data
+- Call Gemini with specialized executive-summary prompt
+- Generate strategic overview with financial impact
+- Provide actionable next steps for procurement teams
+- Display both technical evidence (Cell 7) and business summary (this cell)
+
+**Prompt Engineering**:
+```python
+EXECUTIVE_SUMMARY_PROMPT = """You are a procurement strategy advisor...
+Summarize the following supply chain recommendation...
+
+CONSOLIDATION DATA:
+- Ingredient: {ingredient}
+- Companies Affected: {company_count}
+- BOM Impact: {bom_count}
+- Recommended Supplier: {winner_supplier}
+...
+
+Provide:
+- executive_summary: one-paragraph strategic overview
+- action_items: 3 specific actions
+- financial_impact: savings opportunity
+- risk_considerations: key risks
+- next_steps: immediate action
+"""
+```
+
+**Function: `generate_executive_summary()`**:
+```python
+def generate_executive_summary(context: dict) -> dict:
+    """Generate business-friendly executive summary using Gemini."""
+    response = client.models.generate_content(
+        model="gemini-flash-latest",
+        contents=EXECUTIVE_SUMMARY_PROMPT.format(**context),
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.3,
+        ),
+    )
+    return json.loads(response.text)
+```
+
+**Output Format**:
+```json
+{
+  "executive_summary": "Consolidation of vitamin-d3-cholecalciferol across 17 companies presents...",
+  "action_items": [
+    "Initiate supplier negotiation with Prinova USA for consolidated purchasing",
+    "Validate USP and Halal certification requirements with affected brands",
+    "Calculate volume-based pricing discount potential"
+  ],
+  "financial_impact": "Estimated 12-18% cost reduction through volume consolidation...",
+  "risk_considerations": "Compliance gaps in PureBulk option (missing USP/Halal)...",
+  "next_steps": "Schedule procurement alignment meeting with Nature Made and Kirkland...",
+  "_meta": {
+    "generated_at": "2026-04-18T11:20:00",
+    "model": "gemini-flash-latest"
+  }
+}
+```
+
+**Display Format**:
+```
+======================================================================
+  AGNES EXECUTIVE SUMMARY (Self-Explanation)
+======================================================================
+
+📋 STRATEGIC OVERVIEW
+──────────────────────────────────────────────────────────────────────
+Consolidation of vitamin-d3-cholecalciferol across 17 CPG companies...
+
+🎯 ACTION ITEMS
+──────────────────────────────────────────────────────────────────────
+  1. Initiate supplier negotiation with Prinova USA
+  2. Validate USP and Halal certification requirements
+  3. Calculate volume-based pricing discount potential
+
+💰 FINANCIAL IMPACT
+──────────────────────────────────────────────────────────────────────
+  Estimated 12-18% cost reduction through volume consolidation...
+
+⚠️  RISK CONSIDERATIONS
+──────────────────────────────────────────────────────────────────────
+  Compliance gaps in PureBulk option (missing USP/Halal)...
+
+🚀 IMMEDIATE NEXT STEPS
+──────────────────────────────────────────────────────────────────────
+  → Schedule procurement alignment meeting...
+
+✓ Generated by gemini-flash-latest
+
+Dual Evidence Trail Complete:
+  • Technical: See Cell 7 Evidence Trail (regulatory & compliance)
+  • Business:  See above Executive Summary (strategic & financial)
+```
+
+**Fallback Behavior**:
+If LLM generation fails, returns safe default with fallback flag:
+```python
+{
+  "executive_summary": "Consolidation opportunity identified...",
+  "action_items": ["Review technical evidence", "Validate compliance", "Contact supplier"],
+  "financial_impact": "Potential savings. Detailed analysis required.",
+  "_meta": {"fallback": True, "error": "API failure description"}
+}
+```
+
+**Dual Evidence Trail Value**:
+- **Technical** (Cell 7): Detailed regulatory analysis, compliance gaps, chemistry facts
+- **Business** (Cell 7.5): Strategic overview, financial impact, actionable recommendations
+- **Audience**: Technical for auditors/compliance teams, Business for procurement leadership
 
 ---
 
