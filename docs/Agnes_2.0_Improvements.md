@@ -733,6 +733,78 @@ if result["confidence"] < 0.7:
 
 ---
 
+---
+
+### 6. RAG Compliance Knowledge Base
+
+**Original Approach**: LLM evaluation relied solely on Gemini's training data for regulatory knowledge. No external knowledge source.
+
+**Agnes 2.0 Enhancement**:
+- `rag_engine.py` — production-ready module: `build_index()`, `hybrid_search()`, `rerank()`, `format_context_block()`
+- `scrape_kb.py` — fetches 20 real regulatory documents: FDA 21 CFR 111, DSHEA, USP Verification, USP Cholecalciferol Monograph, NSF/ANSI 173, IFANCA Halal, Kosher, Non-GMO Project, GMP, FDA labeling, facility registration, etc.
+- FAISS HNSW vector index (M=32, `all-MiniLM-L6-v2` 384-dim) + BM25 Okapi keyword index
+- Cross-encoder re-ranker (`ms-marco-MiniLM-L-6-v2`) filters top-5 candidates to top-3
+- Retrieved docs injected into Gemini `system_instruction` before evaluation
+- Evidence trail items must cite `[Source]` brackets: `"[USP Verification Program] USP-verified products must contain..."`
+- `sources_cited[]` field added to every LLM JSON response
+
+**Hybrid Search Formula**:
+```python
+combined_score = 0.65 × vector_score + 0.35 × bm25_score
+```
+
+**Benefit**: LLM decisions are grounded in real regulatory knowledge, not just training data. Source citations make evidence trails auditable and demonstrably non-hallucinated.
+
+---
+
+### 7. Historical Decision Memory
+
+**Original Approach**: Each evaluation was stateless. No memory of past decisions.
+
+**Agnes 2.0 Enhancement**:
+- Every `evaluate_substitutability_rag()` call persists the verdict to `KB/decisions.json`
+- `retrieve_similar_cases()` uses Jaccard token similarity over past verdicts
+- Top-2 similar cases injected as `PRECEDENT CASES` block into the Gemini prompt
+- Grows automatically with each pipeline run — no manual curation required
+
+**Stored Fields per Decision**:
+```python
+{
+    "ingredient_a", "ingredient_b",          # what was evaluated
+    "supplier_a", "supplier_b",              # which suppliers
+    "grade_a", "grade_b",                    # quality grades
+    "certifications_a", "certifications_b",  # certification lists
+    "verdict",                               # APPROVE / REJECT / etc.
+    "confidence",                            # 0.0 – 1.0
+    "reasoning",                             # LLM narrative
+    "evidence_trail",                        # cited facts
+    "sources_cited",                         # retrieved regulatory docs
+    "stored_at",                             # ISO timestamp
+}
+```
+
+**Benefit**: Cross-evaluation consistency, continuous learning from accumulated decisions, demonstrates scalability story to judges.
+
+---
+
+### 8. RAGAS-lite Self-Evaluation
+
+**Original Approach**: No measurement of LLM output quality. Recommendations were accepted as-is.
+
+**Agnes 2.0 Enhancement** (Cell 12-RAG):
+Three quality metrics computed per evaluation without the RAGAS library:
+
+| Metric | Formula | Meaning |
+|--------|---------|--------|
+| Faithfulness | grounded items / total evidence items | Are evidence trail facts supported by retrieved docs? |
+| Answer Relevance | approve/reject signals in retrieved context | Does the verdict align with what the docs say? |
+| Context Recall | relevant docs / total retrieved | Were the right docs actually retrieved? |
+| Overall | mean of three metrics | Aggregate RAG quality score |
+
+**Benefit**: Agnes measures her own reasoning quality — rare among hackathon submissions. Demonstrates evaluation discipline and provides a concrete quality assurance story. Production upgrade path (NLI model, LLM judge, full RAGAS) is documented in `RAG_Architecture.md`.
+
+---
+
 ## Summary of Improvements
 
 | Feature | Original Agnes | Agnes 2.0 | Business Impact |
@@ -750,6 +822,9 @@ if result["confidence"] < 0.7:
 | **Self-Healing** | None | 3-attempt retry with fallback | Robust error recovery |
 | **Self-Monitoring** | None | Real-time confidence tracking | Systematic hallucination control |
 | **Self-Explanation** | None | Dual evidence trails (technical + business) | Explainable AI for stakeholders |
+| **RAG Knowledge Base** | None | 20 real regulatory docs (FDA, USP, NSF, Halal) | Grounded, source-cited decisions |
+| **Historical Memory** | None | Persistent verdict store + precedent retrieval | Cross-evaluation consistency |
+| **Quality Evaluation** | None | RAGAS-lite (Faithfulness, Relevance, Recall) | Measurable decision quality |
 
 ## Competitive Advantages
 
@@ -765,5 +840,6 @@ if result["confidence"] < 0.7:
 - `Project_Overview.md` - High-level project introduction
 - `Database_Complete_Guide.md` - Database schema and relationships
 - `Agnes_Pipeline_Architecture.md` - Technical pipeline documentation
+- `RAG_Architecture.md` - Full RAG system design, KB contents, and production upgrade path
 - `Self_Maintenance.md` - Guide to self-healing, monitoring, and explanation capabilities
 - `Technical_Implementation_Guide.md` - Setup and usage instructions

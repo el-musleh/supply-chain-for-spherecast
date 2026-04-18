@@ -22,15 +22,50 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-### 2. Run the Project
-Start Jupyter Lab to begin exploring the data and building the AI models:
+### 2. Install RAG Dependencies
+The notebook uses a RAG layer (FAISS + BM25 + sentence-transformers). Inject them into the pipx environment:
+
+```bash
+pipx inject jupyterlab faiss-cpu sentence-transformers rank-bm25
+```
+
+### 3. Build the Knowledge Base (first time only)
+Fetches 20 real regulatory documents (FDA, USP, NSF, Halal/Kosher, Non-GMO) and saves them to `KB/regulatory_docs.json`:
+
+```bash
+python scrape_kb.py
+```
+
+### 4. Inject RAG Cells into the Notebook (first time only)
+Adds Cell 4.5 (RAG index) and Cell 12-RAG (quality evaluation) to `agnes.ipynb`. Safe to re-run — idempotent:
+
+```bash
+python patch_notebook.py
+```
+
+### 5. Run the Project
+Start Jupyter Lab and open `agnes.ipynb`. Run all cells top-to-bottom:
 
 ```bash
 jupyter-lab
 ```
-*(Or simply `jupyter notebook`)*
 
 Open the **`explore_data.ipynb`** file to see the initial SQLite database connection and queries in Pandas.
+
+## Kernel Selection (Windsurf / VS Code)
+
+When you open `agnes.ipynb` in Windsurf or VS Code and click **Run All**, the IDE may ask which kernel source to use. Always select:
+
+> **Jupyter Kernel → Agnes (pipx)**
+
+The notebook metadata now encodes this kernel, so after the first selection and a `Ctrl+S` save, the prompt should not appear again.
+
+**If `Agnes (pipx)` is missing from the list**, re-register it:
+```bash
+pipx inject jupyterlab ipykernel
+python3 -m ipykernel install --user --name agnes --display-name "Agnes (pipx)"
+```
+Then reload the IDE window.
 
 ## Recommended VS Code Extensions
 

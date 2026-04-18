@@ -3,9 +3,13 @@
 ## Project Structure & Module Organization
 
 - `DB/db.sqlite` — SQLite database (61 companies, 876 raw materials, 40 suppliers, 149 BOMs, 1,528 BOM components).
-- `agnes.ipynb` — Main 7-cell pipeline: DB ingestion → target selection → mock compliance enrichment → Gemini reasoning → consolidation → final report.
+- `agnes.ipynb` — Main RAG-augmented pipeline: DB ingestion → target selection → compliance enrichment → RAG index (Cell 4.5) → Gemini reasoning (Cell 5) → consolidation → RAGAS-lite evaluation (Cell 12-RAG) → executive dashboard.
 - `explore_data.ipynb` — Scratch notebook for ad-hoc DB queries.
 - `.env` — Contains `GEMINI_API_KEY`; loaded via `python-dotenv`. Never commit this file (already in `.gitignore`).
+- `rag_engine.py` — Production-ready RAG module. Public API: `build_index()`, `hybrid_search()`, `rerank()`, `store_decision()`, `retrieve_similar_cases()`, `format_context_block()`, `evaluate_rag_quality()`. Uses FAISS HNSW (M=32) + BM25 Okapi with `all-MiniLM-L6-v2` embeddings (384-dim).
+- `scrape_kb.py` — Fetches 20 real regulatory documents (FDA 21 CFR 111, DSHEA, USP Vitamin D3 Monograph, NSF/ANSI 173, Halal/Kosher standards, Non-GMO Project, etc.) and writes them to `KB/regulatory_docs.json`. Run once before launching the notebook.
+- `patch_notebook.py` — One-shot idempotent script that injects Cell 4.5 (RAG setup) and Cell 12-RAG (RAGAS-lite evaluation) into `agnes.ipynb`, and upgrades Cell 5 to use `evaluate_substitutability_rag()`. Run once after cloning.
+- `KB/regulatory_docs.json` — Generated knowledge base produced by `scrape_kb.py`. Not committed; re-generate if missing.
 
 **Non-obvious architecture detail:** Raw-material SKUs follow `RM-C{CompanyId}-{ingredient-name}-{8hexhash}`. Parsing the ingredient name out of the SKU (strip prefix via `SUBSTR`/`INSTR`, strip last 9 chars for the hash) reveals that multiple CPG companies independently buy the same ingredient under separate SKUs — this fragmentation is the core problem Agnes solves. All SQL CTEs in `agnes.ipynb` Cell 2 depend on this formula.
 
@@ -25,6 +29,40 @@ If `setup.sh` is unavailable, install manually:
 ```bash
 pip install google-genai ipykernel python-dotenv pandas --break-system-packages
 ```
+
+## Kernel Setup (Windsurf / VS Code)
+
+`setup.sh` registers a Jupyter kernel named **`agnes`** (display name: `Agnes (pipx)`) that points to the pipx-managed Python at `~/.local/share/pipx/venvs/jupyter/bin/python`. The `agnes.ipynb` metadata encodes this kernel, so Windsurf and VS Code should connect automatically without prompting.
+
+**If the kernel prompt still appears:** select `Jupyter Kernel` → `Agnes (pipx)`. After running one cell, save the file (`Ctrl+S`) to persist the selection.
+
+**If `Agnes (pipx)` is missing from the list**, re-register it:
+```bash
+pipx inject jupyterlab ipykernel
+python3 -m ipykernel install --user --name agnes --display-name "Agnes (pipx)"
+```
+
+## RAG Pipeline
+
+The RAG layer grounds every Gemini compliance decision in real regulatory documents. Run in this order on first setup:
+
+```bash
+# 1. Build the knowledge base (fetches 20 regulatory pages, saves KB/regulatory_docs.json)
+python scrape_kb.py
+
+# 2. Inject RAG cells into agnes.ipynb (idempotent — safe to re-run)
+python patch_notebook.py
+
+# 3. Launch the notebook and run cells top-to-bottom
+jupyter-lab
+```
+
+RAG-specific dependencies (inject into the pipx environment if missing):
+```bash
+pipx inject jupyterlab faiss-cpu sentence-transformers rank-bm25
+```
+
+**RAG data flow:** `scrape_kb.py` → `KB/regulatory_docs.json` → Cell 4.5 (`build_index`) → Cell 5 (`hybrid_search` + `rerank` + Gemini prompt injection) → `KB/decisions.json` (historical memory) → Cell 12-RAG (RAGAS-lite quality scores).
 
 ## LLM Integration
 
