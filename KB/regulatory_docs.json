@@ -1,0 +1,182 @@
+[
+  {
+    "id": "fda-21cfr111",
+    "title": "FDA 21 CFR Part 111 — Current Good Manufacturing Practice in Manufacturing, Packaging, Labeling, or Holding Operations for Dietary Supplements",
+    "source": "U.S. FDA / eCFR",
+    "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-B/part-111",
+    "type": "gmp_regulation",
+    "content": "eCFR :: 21 CFR Part 111 -- Current Good Manufacturing Practice in Manufacturing, Packaging, Labeling, or Holding Operations for Dietary Supplements Site Feedback You are using an unsupported browser &times; You are using an unsupported browser. This web site is designed for the current versions of Microsoft Edge, Google Chrome, Mozilla Firefox, or Safari. × Site Feedback The Office of the Federal Register publishes documents on behalf of Federal agencies but does not have any authority over their programs. We recommend you directly contact the agency associated with the content in question. If you have comments or suggestions on how to improve the www.ecfr.gov website or have questions about using www.ecfr.gov, please choose the 'Website Feedback' button below. Website Feedback If you would like to comment on the current content, please use the 'Content Feedback' button below for instructions on contacting the issuing agency Content Feedback If you have questions for the Agency that issued the current document please contact the agency directly. × Website Feedback * Your Name * Email Attachment * How can we help you? * I am requesting technical help or providing website feedback This contact form is only for website help or website suggestions. If you have questions or comments regarding a published document please contact the publishing agency. Comments or questions about document content can not be answered by OFR staff. Please do not provide confidential information or personal data. &#9776; Home Browse Titles Agencies Incorporation by Reference Recent Updates Search Recent Changes Corrections Reader Aids Reader Aids Home Using the eCFR Point-in-Time System Understanding the eCFR Government Policy and OFR Procedures Developer Resources Recent Site Updates My eCFR My Subscriptions Sign Out Sign In / Sign Up eCFR The Electronic Code of Federal Regulations Enhanced Content :: FR Reference Enhanced content is provided to the user to provide additional context. Enhanced Content :: FR Reference Title 21 This content is from the eCFR and is authoritative but unofficial. Displaying title 21, up to date as of 4/16/2026. Title 21 was last amended 4/16/2026. view historical versions A drafting site is available for use when drafting amendatory language switch to drafting site modal#escClose\" data-suggestions-target=\"modal\"> Navigate by entering citations or phrases (eg: suggestions#fillExample\" class=\"example badge badge-info\">1 CFR 1.1 suggestions#fillExample\" class=\"example badge badge-info\">49 CFR 172.101 suggestions#fillExample\" class=\"example badge badge-info\">Organization and Purpose suggestions#fillExample\" class=\"example badge badge-info\">1/1.1 suggestions#fillExample\" class=\"example badge badge-info\">Regulation Y suggestions#fillExample\" class=\"example badge badge-info\">FAR ). Choosing an item from citations and headings will bring you directly to the content. Choosing an item from full text search results will bring you to those results. Pressi",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "fda-dshea",
+    "title": "FDA Dietary Supplement Health and Education Act (DSHEA) — Overview",
+    "source": "U.S. FDA",
+    "url": "https://www.fda.gov/food/dietary-supplements/dietary-supplement-health-and-education-act-1994-dshea",
+    "type": "regulatory_overview",
+    "content": "The Dietary Supplement Health and Education Act of 1994 (DSHEA) defines dietary supplements as products (other than tobacco) that contain a 'dietary ingredient' intended to supplement the diet. Dietary ingredients include: vitamins, minerals, herbs/botanicals, amino acids, enzymes, tissues, metabolites, concentrates. Under DSHEA, manufacturers are responsible for ensuring products are safe before marketing. FDA can take action against unsafe products after they reach the market. Structure/function claims are permitted with proper disclaimers. New dietary ingredients (NDIs) introduced after October 15, 1994 require pre-market notification to FDA. The burden of proof for safety lies with the manufacturer, not FDA. Supplement labels must include: statement of identity, net quantity, nutrition labeling (Supplement Facts panel), ingredient list, name and address of manufacturer/distributor.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "fda-ds-guidance",
+    "title": "FDA Dietary Supplement Questions and Answers",
+    "source": "U.S. FDA",
+    "url": "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements",
+    "type": "fda_guidance",
+    "content": "FDA dietary supplement questions and answers: Dietary supplements are regulated under DSHEA as a special category of food, not as drugs. Manufacturers must ensure products are safe and properly labeled. FDA does not approve dietary supplements for safety or effectiveness before they are sold. Claims: Structure/function claims must be truthful, not misleading, and must carry the disclaimer 'This statement has not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease.' Health claims and nutrient content claims require FDA authorization. Inspections: FDA inspects manufacturing facilities under cGMP regulations (21 CFR Part 111). Adverse event reporting: serious adverse events must be reported to FDA within 15 days.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "fda-gmp-guidance",
+    "title": "FDA Guidance for Industry — Dietary Supplements: New Dietary Ingredient Notifications and Related Issues",
+    "source": "U.S. FDA",
+    "url": "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/dietary-supplements-new-dietary-ingredient-notifications-and-related-issues",
+    "type": "fda_guidance",
+    "content": "FDA Guidance on New Dietary Ingredients (NDI): An NDI is a dietary ingredient not marketed in the US before October 15, 1994. Manufacturers must notify FDA 75 days before marketing products containing NDIs. Notification must include: (1) complete ingredient description; (2) conditions of use; (3) history of use or other evidence of safety. For existing dietary ingredients (pre-DSHEA): Cholecalciferol (Vitamin D3) is a pre-DSHEA ingredient with long history of safe use — no NDI notification required. For novel forms (e.g., new delivery forms, higher doses): may trigger NDI notification requirement. FDA evaluates based on: history of use, manufacturing controls, proposed conditions of use, safety data. Suppliers of NDIs must provide documentation of pre-DSHEA marketing OR NDI notification acknowledgment from FDA.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "fda-supplement-labeling",
+    "title": "FDA Dietary Supplement Labeling Requirements",
+    "source": "U.S. FDA",
+    "url": "https://www.fda.gov/food/dietary-supplements/dietary-supplement-labeling-guide",
+    "type": "labeling_requirement",
+    "content": "FDA Dietary Supplement Labeling Requirements (21 CFR Part 101): (1) Statement of identity: must include the word 'supplement' or identify ingredient type; (2) Net quantity: amount in metric units; (3) Supplement Facts panel: serving size, servings per container, nutrient amounts and % Daily Values where applicable; (4) Other ingredients list: non-nutritive ingredients in descending order of predominance by weight; (5) Name and address of manufacturer, packer, or distributor; (6) Directions for use; (7) Cautionary statements as applicable. For label claims: Structure/function claims require 'This statement has not been evaluated by the FDA' disclaimer within 2 business days of first marketing. Health claims require FDA authorization. Qualified health claims require FDA letter of enforcement discretion. The quality of label claims directly depends on the quality grade of ingredients used — pharmaceutical-grade ingredients with USP certification support stronger label claims.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "nsf-cert-overview",
+    "title": "NSF International — Dietary Supplement Certification Overview",
+    "source": "NSF International",
+    "url": "https://www.nsf.org/services/by-type/sustainability-certification/dietary-supplements",
+    "type": "certification",
+    "content": "NSF International provides third-party certification services for dietary supplements. NSF Certified for Sport: Tests for banned substances (World Anti-Doping Agency list); required by many professional sports organizations and athletes. NSF/ANSI 173: American National Standard for dietary supplements; verifies that products meet label claims for contents; tests for contaminants. NSF cGMP Registration: Certifies that manufacturing facilities comply with FDA 21 CFR Part 111 cGMP regulations; includes initial audit and annual surveillance audits. NSF certification process: (1) Application and review of product formulas and facility information; (2) Laboratory testing of samples; (3) Facility audit; (4) Ongoing market surveillance and annual re-testing. The NSF mark is widely recognized by retailers, healthcare professionals, and consumers as an indicator of quality assurance.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "nsf-173",
+    "title": "NSF/ANSI 173 — Dietary Supplements Standard",
+    "source": "NSF International",
+    "url": "https://www.nsf.org/services/by-industry/food-safety/dietary-supplements",
+    "type": "certification",
+    "content": "NSF/ANSI 173 — Dietary Supplements: This standard establishes minimum requirements for dietary supplement products to help ensure their safety. Scope: applies to dietary supplement products regulated by FDA under DSHEA. Requirements: (1) Product formulation review; (2) Label review for compliance with regulatory requirements; (3) Toxicology review of ingredients; (4) Facility audit for cGMP compliance; (5) Product testing for: contaminants (heavy metals, microorganisms, pesticides), identity and potency of declared ingredients. Certification tiers: NSF Contents Certified (label claims verified), NSF cGMP Registered (facility audit), NSF Certified for Sport (banned substances). For retailers like GNC, Costco/Kirkland, NSF certification provides assurance they can sell products with confidence. Kirkland Signature products at Costco typically require NSF verification.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "usp-supplements",
+    "title": "USP Dietary Supplement Verification Program",
+    "source": "U.S. Pharmacopeia (USP)",
+    "url": "https://www.usp.org/verification-services/dietary-supplement-verification-program",
+    "type": "usp_certification",
+    "content": "The USP Dietary Supplement Verification Program (USP-DSVP) helps manufacturers demonstrate that products meet USP quality standards. USP verified products: (1) Contain the ingredients listed on the label in the declared potency and amounts; (2) Do not contain harmful levels of specified contaminants; (3) Are made according to FDA and USP cGMP standards using sanitary and well-controlled procedures; (4) Will break down and release into the body within a specified amount of time. USP verification is voluntary but widely recognized as a gold standard for dietary supplement quality. The USP mark on a product provides assurance of quality, purity, potency, and consistency. For cholecalciferol (Vitamin D3), USP monograph specifies minimum 97% and maximum 103% of labeled cholecalciferol content. Pharmaceutical grade requires compliance with USP monograph specifications, which food grade does not necessarily meet.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "usp-grade-definition",
+    "title": "USP Pharmaceutical Grade vs Food Grade — Standards Overview",
+    "source": "U.S. Pharmacopeia (USP)",
+    "url": "https://www.usp.org/frequently-asked-questions/general",
+    "type": "grade_definition",
+    "content": "USP defines several quality grades for substances: Pharmaceutical Grade (USP): Meets USP/NF monograph specifications. Highest purity standard. Required for drug products and typically used in dietary supplements making high-potency claims. Purity typically 99%+. Food Grade (FCC): Meets Food Chemicals Codex specifications. Suitable for food use. Lower purity threshold than pharmaceutical grade. Reagent/Technical Grade: Lower purity, for laboratory or industrial use. Not suitable for human consumption. The distinction is critical for CPG companies: a pharmaceutical-grade ingredient carries USP certification verifying identity, strength, quality, and purity. Food-grade ingredients meet FCC standards but not necessarily USP monograph requirements. For products making specific label claims (e.g., '1000 IU Vitamin D3'), pharmaceutical grade is strongly preferred and often required by major retailers.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "halal-ifanca",
+    "title": "IFANCA Halal Certification — Standards and Requirements",
+    "source": "IFANCA (Islamic Food and Nutrition Council of America)",
+    "url": "https://www.ifanca.org/Pages/halal-certification.aspx",
+    "type": "halal_certification",
+    "content": "IFANCA (Islamic Food and Nutrition Council of America) Halal Certification Requirements: A product is Halal (permissible under Islamic law) if it: (1) Does not contain pork or pork by-products; (2) Does not contain alcohol; (3) Contains no ingredients from animals not slaughtered according to Islamic rites; (4) Is not contaminated with non-Halal substances during processing. For dietary supplements: Gelatin must be from Halal-certified bovine or fish sources (not porcine). Stearic acid and magnesium stearate must be from Halal-certified plant or animal sources. Cholecalciferol (Vitamin D3) from lanolin (sheep wool) can be Halal-certified as no slaughter is involved. IFANCA Halal certification requires: facility audit, ingredient review, annual re-certification. The IFANCA crescent-M symbol on packaging indicates certification. Products with Halal certification can be sold to Muslim consumers and in Muslim-majority markets globally.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "halal-hfsaa",
+    "title": "Halal Food Standards Alliance of America — What is Halal?",
+    "source": "HFSAA",
+    "url": "https://www.hfsaa.com/what-is-halal/",
+    "type": "halal_certification",
+    "content": "Halal refers to what is permissible or lawful in traditional Islamic law. For food and supplements: Halal ingredients must come from permissible sources and be processed without contact with non-Halal substances. Key considerations for dietary supplements: (1) Source verification — animal-derived ingredients must come from Halal-slaughtered animals or permissible alternatives; (2) Cross-contamination prevention — shared equipment used for non-Halal products requires full cleaning validation; (3) Alcohol prohibition — ethanol-based extraction solvents may disqualify a product; (4) Lanolin-derived Vitamin D3 is generally considered Halal as it comes from wool, not slaughter. Halal certification benefits: access to 1.8+ billion Muslim consumers globally; premium pricing in specialized markets; required for export to many Middle Eastern and Southeast Asian countries.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "kosher-ok",
+    "title": "OK Kosher Certification — What Does Kosher Mean?",
+    "source": "OK Kosher Certification",
+    "url": "https://www.ok.org/consumers/what-is-kosher/",
+    "type": "kosher_certification",
+    "content": "What is Kosher? - OK Kosher Skip to content Book a time to speak Login Username Password Forgot Password? Not yet OK Certified? Click here to apply Search Pages Resources & Articles KosherConnect articles Kosher Alerts Restaurants Products View All EN ZH KR BR ES IN IL JP TH Search Kosher Alerts CLIENT LOGIN FOR COMPANIES --> Getting Certified Getting Certified Why OK Kosher? Our Difference Contact Us Apply Now Learning Center Guides Education Presentations Resources Blog Featured Resources Product Search The OK Kosher Brand Kosher Basics FAQs Company Manual --> For Consumers ABOUT Our Legacy Our Story THE OK TEAM Careers at OK Kosher CONTACT REQUEST A QUOTE Kosher Alerts CLIENT LOGIN What is Kosher? Published: October 29, 2024 Reading time: 1 minute When your product or establishment is certified Kosher, shoppers know that you comply with a strict policy of kosher food laws, including cleanliness, purity and quality. But kosher means more than responsible food preparation. Kosher refers to a set of intricate biblical laws that detail the types of food that a Jewish person may eat and the ways in which it may be prepared. To be certified Kosher, all ingredients in every product—and the process of preparing the product—must be certified for orthodox kosher-compliance too. Previous Article Next Article Related Articles A Guide to the Proper Use of the OK Kosher Symbol Requirements for Data Submission – Guidelines Guide for Receiving Kosher Ingredients Kosher Certification maintains one of the most instantly recognizable kosher symbols in the history of kosher certification. Certification Getting Certified Apply Now Choosing Kosher Agencies Industrial Kosher Blog Transport Certification Private Label Certification Kosher Basics Meat, Dairy & Pareve Kosher Symbols Kosher Equipment Kosher Spirit Articles Consumer FAQ OK Kosher Certification 391 Troy Avenue Brooklyn, NY 11213 USA CONTACT REQUEST A CONSULTATION BLOG CAREERS Privacy Policy Terms of Use OK Kosher Certification founded in 1935. © 2026 All rights reserved.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "non-gmo-project",
+    "title": "Non-GMO Project — Product Verification Standard",
+    "source": "Non-GMO Project",
+    "url": "https://www.nongmoproject.org/product-verification/",
+    "type": "non_gmo_certification",
+    "content": "Get Verified - The Non-GMO Project Find Products Donate Why Non-GMO Verification Rules & Standard Retailers Non-GMO Project What's Non-GMO Project Verified? Our Mission and History Learn What Is a GMO? GMO Facts & Impacts Understanding Risk Status GMO FAQ Blog Take Action What You Can Do Non-GMO Month Did you know over 70% of products on grocery store shelves contain GMOs? GMOs can have harmful impacts on our health and environment. Read the GMO FAQ Get Verified Steps to Get Verified Apply Verification FAQ Technical Administrators Testing Labs Brand Support Marketing & Resource Library Co-Packer Directory Renewals Complaints & Appeals Explore Events Equitable Transfer Program New GMOs Campaign Little Labels Campaign Nearly a third of shoppers look for the Butterfly to avoid GMOs. Take the first step toward verification today. Apply for Verification Program Rules and Procedures The Standard Standards Committee Got an opinion about GMOs? Your voice matters! Submit a comment to help shape the most rigorous certification for GMO avoidance. Submit a Comment Search for: Find Products Donate Search for: Why Non-GMO Non-GMO Project What’s Non-GMO Project Verified? Mission and History Learn What Is a GMO? GMO Facts & Impacts Understanding Risk Status GMO FAQ Blog Take Action What You Can Do Non-GMO Month Did you know over 70% of products on grocery store shelves contain GMOs? GMOs can have harmful impacts on our health and environment. Read the GMO FAQ Verification Get Verified Steps to Get Verified Apply Verification FAQ Technical Administrators Testing Labs Brand Support Marketing & Resource Library Co-Packer Directory Renewals Complaints & Appeals Explore Events Equitable Transfer Program New GMOs Campaign Little Labels Campaigns Nearly a third of shoppers look for the Butterfly to avoid GMOs. Take the first step toward verification today. Apply for Verification Rules & Standard Program Rules & Procedures The Standard Standards Committee Got an opinion about GMOs? Your voice matters! Submit a comment to help shape the most rigorous certification for GMO avoidance. Submit a Comment Retailers The Butterfly helps your business grow. Learn more about verification. Non-GMO Project verification highlights your commitment to a transparent, natural, non-GMO food system. Verification FAQs Verification Resources Schedule a CALL Why get verified? Shoppers look for the Butterfly Appeal to natural consumers and retailers Share your brand values with your customers Why Get Verified? Shoppers look for the Butterfly Appeal to natural consumers and retailers Share your brand values with your customers The verification process Step 1: Reach out The Non-GMO Project works with four independent technical administrators (TAs) to ensure unbiased product evaluations. Fill out our Get Started form and the Non-GMO Project team will follow up with you to answer your questions and connect you with the TAs. You can also visit our technical administrators page to learn more and fin",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "gmp-iso-22716",
+    "title": "GMP (Good Manufacturing Practice) — Overview and Requirements",
+    "source": "U.S. FDA",
+    "url": "https://www.fda.gov/drugs/pharmaceutical-quality-resources/facts-about-current-good-manufacturing-practices-cgmps",
+    "type": "gmp_regulation",
+    "content": "Current Good Manufacturing Practice (cGMP) for dietary supplements is mandated under 21 CFR Part 111. Key cGMP principles: (1) Personnel: qualified, trained, no communicable disease in food contact areas; (2) Buildings and facilities: adequate size, construction, and design; (3) Equipment: appropriate design, materials, cleaning validation; (4) Production and process controls: master manufacturing records for each product; batch production records for each batch; (5) Laboratory operations: specifications for identity, purity, strength, and composition; (6) Product complaints: written procedures for reviewing and investigating; (7) Record keeping: 1 year past shelf life minimum (2 years per FDA); (8) Component, product, container/closure, and label controls. Third-party GMP certification (NSF, UL, Eurofins) provides independent verification. ISO 22716 is the international standard equivalent, widely used by global suppliers outside the US.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "fda-facility-registration",
+    "title": "FDA Food Facility Registration — Requirements",
+    "source": "U.S. FDA",
+    "url": "https://www.fda.gov/food/online-registration-food-facilities/food-facility-registration-frequently-asked-questions",
+    "type": "fda_registration",
+    "content": "FDA Food Facility Registration: Under the Bioterrorism Act (section 415 of FD&C Act), domestic and foreign facilities that manufacture, process, pack, or hold food for human or animal consumption in the US must register with FDA. Requirements: (1) Biennial renewal (every even-numbered year, October 1 – December 31); (2) Facilities must provide emergency contact information; (3) High-risk facilities subject to more frequent inspections; (4) Registration number serves as proof of FDA registration. For dietary supplement manufacturers: FDA registration is mandatory, not optional. FDA-registered facility number can be verified through FDA's online registration database. Suppliers who claim FDA registration can be verified at: https://www.accessdata.fda.gov/scripts/fdcc/?set=FoodFacilityRegistration. Registration does not imply FDA approval of products — it is an administrative requirement. Failure to register is a prohibited act under 21 USC 331.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "fda-organic-program",
+    "title": "USDA National Organic Program — Organic Certification Overview",
+    "source": "USDA Agricultural Marketing Service",
+    "url": "https://www.ams.usda.gov/about-ams/programs-offices/national-organic-program",
+    "type": "organic_certification",
+    "content": "USDA National Organic Program (NOP): Certified organic products must be produced following organic regulations. For dietary supplements: (1) USDA Certified Organic means the product contains at least 95% organically produced ingredients; (2) 'Made with Organic' means at least 70% organic ingredients; (3) Organic certification prohibits: synthetic pesticides, synthetic fertilizers, GMOs, ionizing radiation, sewage sludge; (4) Annual inspection of certified operations required; (5) Certified organic ingredients must be sourced from NOP-certified suppliers. Supplement implications: organic certification adds complexity to supply chain consolidation because organic supply chains are separate from conventional. Consolidating to a non-organic supplier from an organic supplier is NOT acceptable if finished products carry organic label claims. Organic ingredients typically command 30-200% price premium. Verification: USDA Organic Integrity Database lists all certified operations.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "vitamin-d3-fda-notice",
+    "title": "FDA — Vitamin D3 (Cholecalciferol) Dietary Supplement Guidance",
+    "source": "U.S. FDA",
+    "url": "https://www.fda.gov/food/dietary-supplement-ingredient-advisory-list/information-consumers-vitamins-and-minerals",
+    "type": "ingredient_guidance",
+    "content": "FDA Information on Vitamins and Minerals in Dietary Supplements: Vitamin D3 (Cholecalciferol) specific guidance: (1) Safety: The tolerable upper intake level (UL) for Vitamin D is 4,000 IU/day for adults (Institute of Medicine); FDA considers amounts above this potentially harmful in chronic use; (2) Labeling: Vitamin D must be declared on Supplement Facts panel as 'Vitamin D' with amount in micrograms (mcg) and % Daily Value based on 20 mcg (800 IU) DV; (3) Sources: cholecalciferol (animal-derived, from lanolin or fish liver) or ergocalciferol (plant-derived, from irradiated ergosterol); (4) USP monograph: cholecalciferol must meet USP purity standards for pharmaceutical-grade claims; (5) Form considerations: oil-based vs. dry powder forms have different bioavailability and stability profiles. For consolidation purposes: pharmaceutical-grade cholecalciferol from a USP-certified source meets the highest standard for supplement manufacturers.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "fda-adulteration",
+    "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+    "source": "U.S. FDA",
+    "url": "https://www.fda.gov/food/dietary-supplements/dietary-supplement-products-ingredients",
+    "type": "regulatory_overview",
+    "content": "FDA defines a dietary supplement as adulterated if it: (1) Contains a poisonous or deleterious substance that may render it injurious to health; (2) Bears or contains a food additive that is unsafe; (3) Is prepared, packed, or held under insanitary conditions; (4) Contains any filthy, putrid, or decomposed substance; (5) Has been prepared, packed, or held in a facility not in compliance with cGMP regulations (21 CFR 111). Misbranding occurs when: label is false or misleading; product fails to meet label claims; required information is absent or incorrect. Common cGMP violations leading to adulteration findings: insufficient testing for identity, purity, strength; lack of master manufacturing records; inadequate cleaning procedures; failure to investigate consumer complaints. Adulterated or misbranded supplements are subject to FDA enforcement: warning letters, import alerts, injunctions, criminal prosecution.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "usp-vitamin-d",
+    "title": "USP Monograph — Cholecalciferol (Vitamin D3) Standards",
+    "source": "U.S. Pharmacopeia (USP)",
+    "url": "https://www.usp.org/dietary-supplements/vitamin-d",
+    "type": "usp_monograph",
+    "content": "USP Cholecalciferol Monograph: Cholecalciferol is Vitamin D3 (C27H44O). USP requirement: not less than 97.0% and not more than 103.0% of C27H44O, calculated on the dried basis. Identification: Infrared absorption spectrophotometry; melting point 84–87°C. Specific tests: Heavy metals (not more than 10 ppm); Loss on drying (not more than 0.5%); Chromatographic purity. Storage: Store in a tight container, protected from light, in a freezer. Note: Pharmaceutical-grade cholecalciferol must meet these exact specifications. Lanolin-derived cholecalciferol (from sheep wool grease) is the most common source; it is not vegan but is Halal/Kosher if certified. Lichen-derived cholecalciferol is the vegan alternative. CAS number: 67-97-0.",
+    "scraped_date": "2026-04-18"
+  },
+  {
+    "id": "fda-third-party-testing",
+    "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+    "source": "U.S. FDA",
+    "url": "https://www.fda.gov/food/new-era-smarter-food-safety/laboratory-accreditation-program",
+    "type": "third_party_testing",
+    "content": "FDA Laboratory Accreditation Program (FSMA Section 202): Establishes a program for voluntary accreditation of third-party auditors/certification bodies. Third-party testing for dietary supplements: While FDA does not require third-party testing, it is strongly encouraged and often required by retailers. Common third-party testing services: (1) Identity testing: confirms the ingredient is what it claims to be (DNA barcoding, HPLC, mass spectrometry); (2) Potency testing: confirms label claims for active ingredient amounts; (3) Contaminant testing: heavy metals (lead, mercury, arsenic, cadmium), pesticide residues, microbiological contaminants; (4) Banned substance testing (for sports supplements). Reputable third-party labs: Eurofins, Covance, ChromaDex, NSF International, USP. For CPG sourcing consolidation: consolidated suppliers should have equivalent or superior third-party testing documentation to justify substitution approval.",
+    "scraped_date": "2026-04-18"
+  }
+]

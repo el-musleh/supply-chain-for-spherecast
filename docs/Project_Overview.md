@@ -50,15 +50,16 @@ At Spherecast, the concept of "Agnes" represents an AI Supply Chain Manager that
 
 ### How Agnes Works
 
-Agnes follows a 7-stage pipeline:
+Agnes follows an 8-stage pipeline:
 
 1. **Database Ingestion** - Loads fragmented BOM data from 60 CPG companies (143 shared ingredients, 1,214 BOM appearances)
 2. **Target Selection** - Identifies high-value consolidation opportunities using demand volume and supplier diversity metrics
 3. **Compliance Enrichment** - Scrapes external supplier data (certifications, grade, lead time, FDA registration)
-4. **LLM Reasoning** - Uses Gemini Flash to evaluate substitutability with strict compliance guardrails
-5. **Consolidation Algorithm** - Ranks suppliers by `bom_appearances_covered × compliance_weight`
-6. **Evidence Trail** - Produces explainable reasoning justifying each recommendation
-7. **Executive Dashboard** - Delivers ranked action list across all ingredients
+4. **RAG Knowledge Base** - Builds FAISS HNSW + BM25 index over 20 real regulatory documents (FDA, USP, NSF, Halal, Non-GMO)
+5. **LLM Reasoning** - Uses Gemini Flash to evaluate substitutability, grounded in retrieved regulatory context with source-cited evidence trails
+6. **Consolidation Algorithm** - Ranks suppliers by `bom_appearances_covered × compliance_weight`
+7. **Evidence Trail** - Produces explainable, source-cited reasoning justifying each recommendation
+8. **Executive Dashboard** - Delivers ranked action list across all ingredients
 
 ### Agnes 2.0 Enhancements
 
@@ -68,6 +69,9 @@ The implementation extends the original Agnes concept with:
 - **Disruption Simulator** - "What if a supplier goes offline?" auto-rerouting analysis
 - **Cross-Cluster Detection** - Identifies substitution opportunities across ingredient name variants (e.g., vitamin-d3 → vitamin-d3-cholecalciferol)
 - **Trust-Adjusted Scoring** - Multiplies compliance weight by supplier trust tier (0.5x to 1.5x)
+- **RAG Compliance KB** - 20 real regulatory documents indexed for retrieval; every LLM verdict grounded in `[USP]`, `[FDA]`, `[NSF]` sources
+- **Historical Decision Memory** - Persists all verdicts to `KB/decisions.json`; similar past cases retrieved as precedent context
+- **RAGAS-lite Quality Evaluation** - Faithfulness, Answer Relevance, and Context Recall measured per evaluation (Cell 12-RAG)
 
 ## Hackathon Context
 
@@ -131,7 +135,9 @@ Raw material vendors in the database include:
 - **Model**: Gemini Flash Latest via Google GenAI SDK
 - **API**: Google GenAI (not the older google-generativeai package)
 - **Configuration**: `response_mime_type="application/json"`, `temperature=0.2`
-- **System Prompt**: Hard-encoded compliance guardrails to prevent hallucinations
+- **System Prompt**: Real regulatory context (RAG) + compliance guardrails + grounding rules
+- **RAG Layer**: FAISS HNSW + BM25 hybrid search, cross-encoder reranker, source citations in every evidence trail
+- **Historical Memory**: `KB/decisions.json` — cumulative verdict store with precedent retrieval
 
 ### Key Algorithms
 
@@ -164,6 +170,7 @@ This repository lives on an `exfat` filesystem that does not support symlinks. S
 - `Database_Architecture.md` - Detailed database schema and relationships
 - `Agnes_Pipeline_Architecture.md` - Technical documentation of the 10-cell pipeline
 - `Agnes_2.0_Improvements.md` - Enhancements over the original concept
+- `RAG_Architecture.md` - RAG system design, KB contents, retrieval pipeline, RAGAS-lite metrics, production upgrade path
 - `Technical_Implementation_Guide.md` - Developer setup and usage guide
 - `Business_Value.md` - ROI analysis and case studies
 - `NotebookLM_Summary.md` - Consolidated reference for AI analysis

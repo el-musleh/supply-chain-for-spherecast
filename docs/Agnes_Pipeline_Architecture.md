@@ -311,16 +311,73 @@ The mock data reflects real-world differences:
 
 ---
 
+### Cell 4.5: RAG Compliance Knowledge Base
+
+**Purpose**: Build a Retrieval-Augmented Generation (RAG) index over real regulatory documents so that every Cell 5 LLM evaluation is grounded in retrieved, source-cited knowledge.
+
+**What it builds**:
+- **FAISS HNSW vector index** (`M=32`, 384-dim `all-MiniLM-L6-v2` embeddings)
+- **BM25 Okapi keyword index** (`rank_bm25.BM25Okapi`)
+- Both indexes are packaged into a `RagIndex` dataclass, stored as `rag_index` in notebook scope
+
+**Knowledge Base**:
+20 regulatory documents scraped from public sources and stored in `KB/regulatory_docs.json`:
+- FDA 21 CFR Part 111 (cGMP for dietary supplements)
+- FDA DSHEA (Dietary Supplement Health and Education Act)
+- USP Verification Program + Cholecalciferol Monograph
+- NSF/ANSI 173 Dietary Supplements Standard
+- IFANCA and HFSAA Halal certification standards
+- OK Kosher certification requirements
+- Non-GMO Project Verification Standard
+- FDA labeling, facility registration, adulteration rules
+- USDA National Organic Program
+
+**Run once to build/refresh KB**:
+```bash
+python scrape_kb.py
+```
+
+**Cell 4.5 Code**:
+```python
+from rag_engine import (
+    build_index, hybrid_search, rerank,
+    format_context_block, format_precedent_block,
+    retrieve_similar_cases, store_decision, evaluate_rag_quality,
+)
+
+rag_index = build_index("KB/regulatory_docs.json")
+```
+
+**Output**:
+- `rag_index` object with `.docs`, `.faiss_index`, `.bm25`, `.embedding_model`
+- Retrieval test showing top-3 results for a sample Vitamin D3 query
+- KB coverage breakdown by document type
+
+**Key Insight**:
+This cell produces zero visible compliance decisions — its entire purpose is to provide Cell 5 with real regulatory grounding. The RAG index persists in notebook memory for all subsequent evaluations.
+
+---
+
 ### Cell 5: LLM Reasoning Agent (Gemini)
 
-**Purpose**: Use Gemini Flash to evaluate ingredient substitutability with strict compliance guardrails and evidence trail requirements.
+**Purpose**: Use Gemini Flash to evaluate ingredient substitutability with strict compliance guardrails, RAG-retrieved regulatory context, and source-cited evidence trails.
+
+**RAG Enhancement** (Agnes 2.0):
+Cell 5 now uses `evaluate_substitutability_rag()` which wraps the base LLM call with:
+1. `hybrid_search(rag_index, query, top_k=5)` — retrieve top-5 regulatory docs
+2. `rerank(query, docs, top_n=3)` — cross-encoder filters to top-3
+3. Context injected into `system_instruction` before `AGNES_SYSTEM_PROMPT`
+4. Grounding rules require evidence trail items to cite `[Source]` brackets
+5. `sources_cited[]` field added to every JSON response
+6. `store_decision()` persists every verdict to `KB/decisions.json`
+7. `retrieve_similar_cases()` fetches past similar verdicts as precedent context
 
 **Model Configuration**:
 - **Model**: `gemini-flash-latest`
 - **SDK**: Google GenAI (not the older `google-generativeai`)
 - **Response Format**: Native JSON (`response_mime_type="application/json"`)
 - **Temperature**: 0.2 (low for consistent, factual reasoning)
-- **System Prompt**: Hard-encoded compliance guardrails
+- **System Prompt**: Real regulatory context + compliance guardrails + grounding rules
 
 **System Prompt (`AGNES_SYSTEM_PROMPT`)**:
 ```
@@ -350,7 +407,8 @@ OUTPUT FORMAT: Respond with valid JSON only matching this exact schema:
   "compliance_met": <bool>,
   "compliance_gaps": ["<gap description if any>"],
   "reasoning": "<2-4 sentence narrative>",
-  "recommendation": "<APPROVE | APPROVE_WITH_CONDITIONS | REJECT | HUMAN_REVIEW_REQUIRED>"
+  "recommendation": "<APPROVE | APPROVE_WITH_CONDITIONS | REJECT | HUMAN_REVIEW_REQUIRED>",
+  "sources_cited": [{"source": "...", "title": "..."}]
 }
 ```
 
@@ -1019,9 +1077,15 @@ Cell 4 (Enrichment)
     ↓
     → scrape_supplier_compliance() function
     ↓
-Cell 5 (LLM)
+Cell 4.5 (RAG Index)
+    ↓
+    → rag_index (FAISS HNSW + BM25 over 20 regulatory docs)
+    ↓
+Cell 5 (LLM — RAG-augmented)
     ↓
     → eval_within_cluster, eval_cross_cluster
+    → _rag_docs_within, _rag_docs_cross (retrieved docs)
+    → KB/decisions.json (historical memory)
     ↓
 Cell 6 (Optimization)
     ↓
@@ -1042,6 +1106,10 @@ Cell 9 (Risk Heat Map)
 Cell 10 (Disruption)
     ↓
     → Contingency plan
+    ↓
+Cell 12-RAG (RAGAS-lite)
+    ↓
+    → Faithfulness, Answer Relevance, Context Recall scores
 ```
 
 ## Key Algorithms Summary
@@ -1080,6 +1148,18 @@ trust_multiplier = max(0.5, min(1.5, score / 100))
 ### 5. Consolidation Score (Cell 6)
 ```python
 score = bom_appearances_covered × compliance_weight × trust_multiplier
+```
+
+### 6. RAG Hybrid Search Score (Cell 4.5)
+```python
+combined_score(doc) = α × vector_score(doc) + (1−α) × bm25_score(doc)
+# α = 0.65  (vector-dominant)
+```
+
+### 7. RAGAS-lite Faithfulness (Cell 12-RAG)
+```python
+faithfulness = grounded_items / total_evidence_items
+# grounded = evidence item has ≥20% token overlap with retrieved docs
 ```
 
 ## LLM Integration Details
@@ -1125,4 +1205,5 @@ score = bom_appearances_covered × compliance_weight × trust_multiplier
 - `Project_Overview.md` - High-level project introduction
 - `Database_Complete_Guide.md` - Database schema and relationships
 - `Agnes_2.0_Improvements.md` - Enhancements over original concept
+- `RAG_Architecture.md` - Full RAG system design and production upgrade path
 - `Technical_Implementation_Guide.md` - Setup and usage instructions

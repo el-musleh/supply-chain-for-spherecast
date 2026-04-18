@@ -1,0 +1,325 @@
+[
+  {
+    "ingredient_a": "vitamin-d3",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "Prinova USA",
+    "grade_a": "food",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "GMP",
+      "Kosher"
+    ],
+    "certifications_b": [
+      "USP",
+      "GMP",
+      "Halal",
+      "Kosher"
+    ],
+    "verdict": "APPROVE",
+    "confidence": 0.98,
+    "reasoning": "Pharma-grade upgrade from food-grade. Meets or exceeds all requirements.",
+    "evidence_trail": [
+      "[USP] Pharmaceutical grade meets higher purity spec."
+    ],
+    "stored_at": "2026-04-18T11:49:31.271790"
+  },
+  {
+    "ingredient_a": "vitamin-d3-cholecalciferol",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "PureBulk",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "USP",
+      "GMP",
+      "Halal",
+      "Kosher"
+    ],
+    "certifications_b": [
+      "GMP",
+      "Kosher"
+    ],
+    "verdict": "REJECT",
+    "confidence": 0.95,
+    "reasoning": "While both ingredients are listed as pharmaceutical grade, Ingredient B lacks the USP and Halal certifications held by Ingredient A. Major retailers and brands in the target list, such as Nature Made and Kirkland Signature, require USP verification for their supply chains to maintain label claims and consumer trust. Removing these certifications would result in misbranding or violation of retailer",
+    "evidence_trail": [
+      "Ingredient A carries USP certification, while Ingredient B does not.",
+      "Ingredient A is Halal-certified; Ingredient B lacks this certification.",
+      "Retailers listed in the business context, such as GNC and Kirkland Signature (Costco), rely on third-party certifications like USP or NSF to ensure safety and label accuracy [3].",
+      "Nature Made, one of the affected brands, specifically markets USP-verified products as a core brand promise.",
+      "FDA cGMP regulations (21 CFR 111) require rigorous testing for identity, purity, and strength; USP certification provides a standardized framework for this compliance that Ingredient B lacks [2].",
+      "A substitution must meet or exceed the quality and compliance level of the original; Ingredient B represents a downgrade in third-party verification status."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+        "score": -6.0891
+      },
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -6.3629
+      },
+      {
+        "id": "nsf-173",
+        "source": "NSF International",
+        "title": "NSF/ANSI 173 — Dietary Supplements Standard",
+        "score": -6.4349
+      }
+    ],
+    "stored_at": "2026-04-18T12:25:17.960336"
+  },
+  {
+    "ingredient_a": "vitamin-d3",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "Prinova USA",
+    "grade_a": "food",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "GMP",
+      "Kosher"
+    ],
+    "certifications_b": [
+      "USP",
+      "GMP",
+      "Halal",
+      "Kosher"
+    ],
+    "verdict": "APPROVE",
+    "confidence": 0.98,
+    "reasoning": "Ingredient B represents a clear quality and regulatory upgrade from Ingredient A, moving from a food-grade blend to a USP-grade pharmaceutical ingredient. It satisfies all existing certifications of the original material while adding Halal and USP compliance, which are critical for the dietary supplement brands listed in the business context.",
+    "evidence_trail": [
+      "Ingredient B is pharmaceutical grade (USP), which exceeds the food grade status of Ingredient A [Case 1].",
+      "Ingredient B maintains all certifications of Ingredient A (GMP, Kosher, Non-GMO) and adds Halal and USP verification.",
+      "Brands in the business context, specifically Nature Made and Kirkland Signature, frequently require USP-grade ingredients to maintain label claims and retailer trust [NSF/ANSI 173].",
+      "Ingredient B is explicitly identified as cholecalciferol with a USP-grade specification, whereas Ingredient A is a lower-potency food-grade blend.",
+      "Both ingredients are sourced from the same supplier (Prinova USA) with identical lead times, eliminating logistical risk."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -5.5177
+      },
+      {
+        "id": "nsf-173",
+        "source": "NSF International",
+        "title": "NSF/ANSI 173 — Dietary Supplements Standard",
+        "score": -5.6664
+      },
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+        "score": -5.971
+      }
+    ],
+    "stored_at": "2026-04-18T12:25:31.604173"
+  },
+  {
+    "ingredient_a": "vitamin-d3-cholecalciferol",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "PureBulk",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "USP",
+      "GMP",
+      "Halal",
+      "Kosher"
+    ],
+    "certifications_b": [
+      "GMP",
+      "Kosher"
+    ],
+    "verdict": "REJECT",
+    "confidence": 0.95,
+    "reasoning": "While both ingredients are pharmaceutical grade, Ingredient B lacks the USP and Halal certifications required by several high-profile brands in the consolidation list, such as Nature Made and Kirkland Signature. Downgrading the certification profile would lead to misbranding and non-compliance with retailer-specific quality mandates.",
+    "evidence_trail": [
+      "Ingredient B lacks USP certification, which is a critical requirement for brands like Nature Made and Kirkland Signature to maintain label claims [Precedent Case 1].",
+      "Ingredient B lacks Halal certification, which is present in Ingredient A, creating a compliance gap for any finished products marketed with Halal claims.",
+      "Retailers such as Costco (Kirkland) and GNC often require third-party certifications like USP or NSF to provide assurance of identity and potency [NSF/ANSI 173].",
+      "FDA regulations state that misbranding occurs when a product fails to meet label claims; substituting a non-USP ingredient into a USP-labeled product would result in a regulatory violation [FDA — Adulteration of Dietary Supplements and cGMP Compliance].",
+      "Ingredient B has fewer third-party audits than Ingredient A, increasing the risk profile for the 33 BOMs involved."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+        "score": -6.0891
+      },
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -6.3629
+      },
+      {
+        "id": "nsf-173",
+        "source": "NSF International",
+        "title": "NSF/ANSI 173 — Dietary Supplements Standard",
+        "score": -6.4349
+      }
+    ],
+    "stored_at": "2026-04-18T12:29:16.850277"
+  },
+  {
+    "ingredient_a": "vitamin-d3",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "Prinova USA",
+    "grade_a": "food",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "GMP",
+      "Kosher"
+    ],
+    "certifications_b": [
+      "USP",
+      "GMP",
+      "Halal",
+      "Kosher"
+    ],
+    "verdict": "APPROVE",
+    "confidence": 0.98,
+    "reasoning": "Ingredient B represents a clear quality and regulatory upgrade from Ingredient A, moving from a food-grade blend to a USP-grade pharmaceutical ingredient. It satisfies all existing certifications of the original material while adding Halal and USP compliance, which are critical for the dietary supplement brands in the business context.",
+    "evidence_trail": [
+      "Ingredient B is pharmaceutical grade, which exceeds the food grade status of Ingredient A.",
+      "Ingredient B complies with USP (United States Pharmacopeia) standards, ensuring higher potency and purity verification compared to Ingredient A's non-USP blend [2].",
+      "Ingredient B maintains all certifications of Ingredient A (GMP, Kosher, Non-GMO) and adds Halal certification.",
+      "Ingredient B is specifically noted as suitable for dietary supplement labeling, which is required for the listed CPG brands like Nature Made and Kirkland Signature [2].",
+      "Both ingredients are sourced from the same supplier (Prinova USA) with identical lead times (14 days), eliminating logistical friction.",
+      "FDA cGMP compliance (21 CFR 111) for dietary supplements is better supported by USP-grade materials which undergo more rigorous identity and potency testing [1][3]."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -5.5177
+      },
+      {
+        "id": "nsf-173",
+        "source": "NSF International",
+        "title": "NSF/ANSI 173 — Dietary Supplements Standard",
+        "score": -5.6664
+      },
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+        "score": -5.971
+      }
+    ],
+    "stored_at": "2026-04-18T12:29:29.602633"
+  },
+  {
+    "ingredient_a": "vitamin-d3-cholecalciferol",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "PureBulk",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "USP",
+      "GMP",
+      "Halal",
+      "Kosher"
+    ],
+    "certifications_b": [
+      "GMP",
+      "Kosher"
+    ],
+    "verdict": "REJECT",
+    "confidence": 0.95,
+    "reasoning": "While Ingredient B is listed as pharmaceutical grade and offers a shorter lead time, it fails to meet the certification requirements of the current supply chain. The absence of USP and Halal certifications would force major brands like Nature Made and Kirkland Signature to change their labeling or lose their third-party verification status, which is a significant regulatory and commercial risk.",
+    "evidence_trail": [
+      "Ingredient B lacks the USP (United States Pharmacopeia) certification held by Ingredient A, which is a critical quality benchmark for pharmaceutical-grade ingredients in the US market [1].",
+      "Ingredient B lacks Halal certification, which is present in Ingredient A's profile.",
+      "Major brands in the consolidation list, specifically Nature Made and Kirkland Signature, utilize USP verification as a core part of their brand identity and quality assurance [Precedent Case 1].",
+      "Retailers like GNC and Costco (Kirkland) rely on third-party certifications such as NSF/ANSI 173 and USP to ensure product safety and label accuracy [3].",
+      "FDA regulations define misbranding as a product failing to meet label claims; removing a USP-certified ingredient from a product labeled as USP-verified would constitute misbranding [2].",
+      "The loss of Halal certification would invalidate the compliance status for any finished products currently marketed as Halal within the 33 BOM appearances."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+        "score": -6.0891
+      },
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -6.3629
+      },
+      {
+        "id": "nsf-173",
+        "source": "NSF International",
+        "title": "NSF/ANSI 173 — Dietary Supplements Standard",
+        "score": -6.4349
+      }
+    ],
+    "stored_at": "2026-04-18T13:03:41.094825"
+  },
+  {
+    "ingredient_a": "vitamin-d3",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "Prinova USA",
+    "grade_a": "food",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "GMP",
+      "Kosher"
+    ],
+    "certifications_b": [
+      "USP",
+      "GMP",
+      "Halal",
+      "Kosher"
+    ],
+    "verdict": "APPROVE",
+    "confidence": 0.98,
+    "reasoning": "Ingredient B is a clear regulatory and quality upgrade, moving from a food-grade blend to a USP-grade pharmaceutical ingredient. It satisfies all existing certifications of the original material while adding Halal and USP compliance, which are critical for the dietary supplement brands listed in the business context.",
+    "evidence_trail": [
+      "Ingredient B is pharmaceutical grade (USP), which represents a quality upgrade over Ingredient A's food-grade specification.",
+      "Ingredient B maintains all certifications held by Ingredient A, including GMP, Kosher, and Non-GMO status.",
+      "Ingredient B adds Halal certification and USP monograph compliance, which were absent in Ingredient A.",
+      "USP-grade ingredients provide superior documentation for identity, purity, and strength testing required under FDA 21 CFR 111 [1].",
+      "Third-party verification (USP) is a recognized standard for retailers like Kirkland Signature and Nature Made to ensure label claim accuracy [2][3].",
+      "Both ingredients are sourced from the same supplier (Prinova USA) with identical 14-day lead times, eliminating logistical disruption."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -5.5177
+      },
+      {
+        "id": "nsf-173",
+        "source": "NSF International",
+        "title": "NSF/ANSI 173 — Dietary Supplements Standard",
+        "score": -5.6664
+      },
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+        "score": -5.971
+      }
+    ],
+    "stored_at": "2026-04-18T13:03:52.545823"
+  }
+]
