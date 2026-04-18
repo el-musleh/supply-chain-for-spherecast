@@ -115,6 +115,9 @@ def build_index(kb_path: str = "KB/regulatory_docs.json") -> RagIndex:
     with open(kb_path, encoding="utf-8") as f:
         docs = json.load(f)
 
+    from transformers import logging as _hf_logging
+    _hf_logging.set_verbosity_error()
+
     print(f"  Loading embedding model (all-MiniLM-L6-v2) ...", end=" ", flush=True)
     model = SentenceTransformer("all-MiniLM-L6-v2")
     print("done")
@@ -250,6 +253,8 @@ def rerank(query: str, docs: list[dict], top_n: int = 3) -> list[dict]:
         return docs
 
     try:
+        from transformers import logging as _hf_logging
+        _hf_logging.set_verbosity_error()
         from sentence_transformers import CrossEncoder
         ce = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
