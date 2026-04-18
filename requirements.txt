@@ -2,5 +2,5 @@
 # You can generate this by running 'pip freeze > requirements.txt' from your working environment.
 jupyter
 ipywidgets
-google-genai
+google-genai>=1.73.1
 

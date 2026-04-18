@@ -23,20 +23,26 @@ jupyter-lab
 
 If `setup.sh` is unavailable, install manually:
 ```bash
-pip install google-generativeai ipykernel python-dotenv pandas --break-system-packages
+pip install google-genai ipykernel python-dotenv pandas --break-system-packages
 ```
 
 ## LLM Integration
 
-- Model: `gemini-flash-latest` via `google-generativeai` SDK.
-- API key: set `GEMINI_API_KEY` in `.env`; Cell 1 calls `load_dotenv()` before `genai.configure()`.
+- Model: `gemini-flash-latest` via `google-genai` SDK (`import google.genai as genai`).
+- API key: set `GEMINI_API_KEY` in `.env`; Cell 1 calls `load_dotenv()` then `genai.Client(api_key=...)`.
 - Structured output: `response_mime_type="application/json"` + `temperature=0.2` — no markdown fence stripping needed.
 - The system prompt in Cell 5 (`AGNES_SYSTEM_PROMPT`) hard-encodes compliance guardrails. Do not soften them — hallucination control is a primary judging criterion.
 
 ## Consolidation Logic
 
-Cell 6 ranks suppliers by `bom_appearances_covered × compliance_weight`. Suppliers with LLM verdict `APPROVE`, `APPROVE_WITH_CONDITIONS`, or `HUMAN_REVIEW_REQUIRED` are included; only `REJECT` is excluded. `compliance_weight` penalises food-grade over pharmaceutical and rewards certifications (USP, GMP, Halal, Kosher, Non-GMO).
+Cell 6 ranks suppliers by `bom_appearances_covered × compliance_weight`. Suppliers with LLM verdict `APPROVE`, `APPROVE_WITH_CONDITIONS`, or `HUMAN_REVIEW_REQUIRED` are included; only `REJECT` is excluded.
+
+`compliance_weight` formula:
+- Base: +1.0
+- Pharmaceutical grade: +0.2 | FDA registered: +0.1 | Non-GMO: +0.1
+- Per certification (USP, GMP, Halal, Kosher, etc.): +0.05, capped at +0.30
+- Technical grade: −0.30 | Minimum floor: 0.10
 
 ## Commit Conventions
 
-Two commits in history follow the pattern: `<Verb> <what> for <context>` (e.g., `Implements Agnes AI for CPG sourcing consolidation`). Keep messages imperative and descriptive.
+Four commits in history follow the pattern: `<Verb> <what> for <context>` (e.g., `Implements Agnes AI for CPG sourcing consolidation`). Keep messages imperative and descriptive.

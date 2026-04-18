@@ -39,6 +39,21 @@ If your team is using Visual Studio Code to run Jupyter Notebooks or view the da
 - **Python** (by Microsoft): Intellisense, linting, and formatting support.
 - **SQLite Viewer** (by alexcvzz): Quickly inspect the `DB/db.sqlite` tables and schemas directly inside VS Code without needing external DB GUI tools (like DBeaver or DB Browser).
 
+## Common Pitfall: Wrong Google Package
+
+If you see `ImportError: cannot import name 'genai' from 'google'`, you likely have the **old** package installed instead of the new one.
+
+| Wrong | Correct |
+|---|---|
+| `google-generativeai` | `google-genai` |
+
+Fix it with:
+```bash
+pip install google-genai --break-system-packages
+```
+
+Then restart your Jupyter kernel (Kernel → Restart Kernel) and re-run the cell.
+
 ## Important Note on Virtual Environments
 
 **How the filesystem affects your team:**

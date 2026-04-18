@@ -1,3 +1,5 @@
 {
-  "python.terminal.useEnvFile": true
+  "python.terminal.useEnvFile": true,
+  "python.analysis.typeCheckingMode": "off",
+  "python.defaultInterpreterPath": "/home/steve2/.local/share/pipx/venvs/jupyter/bin/python"
 }
