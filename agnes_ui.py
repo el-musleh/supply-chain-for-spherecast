@@ -50,6 +50,18 @@ from rag_engine import (
     store_decision,
 )
 
+from logging_config import (
+    get_logger,
+    create_session_logger,
+    get_session_logger,
+    close_session_logger,
+    log_operation,
+)
+
+# Initialize loggers
+logger = get_logger("ui")
+session_logger = create_session_logger()
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Setup
 # ─────────────────────────────────────────────────────────────────────────────
@@ -478,12 +490,171 @@ def _load_history() -> list[list]:
         return []
 
 
+def _load_session_logs(filter_level: str = "All", tail: int = 100) -> str:
+    """Load recent session log entries."""
+    if not session_logger:
+        return "No active session logger."
+    
+    log_path = session_logger.session_file_path
+    if not log_path.exists():
+        return "Session log file not found."
+    
+    try:
+        lines = log_path.read_text(encoding='utf-8').strip().split('\n')
+        
+        # Parse JSON lines and filter
+        filtered = []
+        for line in lines[-tail:]:  # Get last N lines
+            try:
+                entry = json.loads(line)
+                level = entry.get('level', 'INFO')
+                
+                if filter_level != "All" and level != filter_level:
+                    continue
+                
+                timestamp = entry.get('timestamp', 'Unknown')
+                message = entry.get('message', '')
+                component = entry.get('component', '')
+                
+                # Format based on level
+                prefix = f"[{timestamp}] {level}"
+                if component:
+                    prefix += f" [{component}]"
+                
+                filtered.append(f"{prefix}: {message}")
+            except json.JSONDecodeError:
+                # Non-JSON line, include as-is
+                filtered.append(line)
+        
+        return '\n'.join(filtered) if filtered else "No log entries found."
+    except Exception as e:
+        return f"Error loading session logs: {e}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# URL Detection & Scraper Integration
+# ─────────────────────────────────────────────────────────────────────────────
+
+_URL_PATTERN = re.compile(r'https?://[^\s<>"\']+')
+
+
+def detect_urls(notes: str) -> tuple[str, list]:
+    """Detect URLs in notes and return status HTML and URL list."""
+    if not notes:
+        return '<div style="color:#94a3b8;font-size:0.85rem;padding:4px 0">URLs detected: 0</div>', []
+    
+    urls = _URL_PATTERN.findall(notes)
+    
+    if not urls:
+        return '<div style="color:#94a3b8;font-size:0.85rem;padding:4px 0">No URLs detected</div>', []
+    
+    # Format URL list for display
+    url_list_html = '<div style="color:#15803d;font-size:0.85rem;padding:4px 0">'
+    url_list_html += f'<strong>URLs detected: {len(urls)}</strong><ul style="margin:4px 0;padding-left:16px">'
+    for url in urls:
+        # Truncate long URLs for display
+        display_url = url[:60] + "..." if len(url) > 60 else url
+        url_list_html += f'<li>{display_url}</li>'
+    url_list_html += '</ul></div>'
+    
+    session_logger.info(f"URL detection: found {len(urls)} URLs", extra={"urls": urls})
+    
+    return url_list_html, urls
+
+
+def fetch_url_details(urls: list) -> tuple[str, list]:
+    """Fetch details from detected URLs using appropriate scraper."""
+    if not urls:
+        return '<div style="color:#dc2626;padding:8px">No URLs to fetch</div>', []
+    
+    results = []
+    status_html = '<div style="color:#2563eb;font-size:0.85rem;padding:8px;border-left:3px solid #2563eb;background:#eff6ff;margin:8px 0">'
+    status_html += '<strong>📥 Fetching URL details...</strong><ul style="margin:4px 0;padding-left:16px">'
+    
+    for url in urls:
+        from time import perf_counter
+        start = perf_counter()
+        
+        try:
+            # Determine URL type and use appropriate method
+            url_lower = url.lower()
+            
+            if url_lower.endswith('.pdf'):
+                # PDF - download and extract text
+                status_html += f'<li>📄 PDF detected: {url[:50]}... (downloading)</li>'
+                resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
+                resp.raise_for_status()
+                duration = (perf_counter() - start) * 1000
+                status_html += f'<li style="color:#16a34a">✓ Downloaded PDF ({len(resp.content)//1024}KB, {duration:.0f}ms)</li>'
+                results.append({"url": url, "type": "pdf", "data": resp.content, "success": True})
+                session_logger.log_scraper(url, True, "pdf_download", duration, size_kb=len(resp.content)//1024)
+                
+            elif any(url_lower.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp', '.gif']):
+                # Image - download for Vision API
+                status_html += f'<li>🖼️ Image detected: {url[:50]}... (downloading)</li>'
+                resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
+                resp.raise_for_status()
+                duration = (perf_counter() - start) * 1000
+                status_html += f'<li style="color:#16a34a">✓ Downloaded image ({len(resp.content)//1024}KB, {duration:.0f}ms)</li>'
+                results.append({"url": url, "type": "image", "data": resp.content, "success": True})
+                session_logger.log_scraper(url, True, "image_download", duration, size_kb=len(resp.content)//1024)
+                
+            else:
+                # HTML page - scrape with BeautifulSoup
+                status_html += f'<li>🌐 Web page: {url[:50]}... (scraping)</li>'
+                resp = requests.get(url, timeout=15, headers={"User-Agent": "Agnes/2.0"})
+                resp.raise_for_status()
+                
+                soup = BeautifulSoup(resp.text, "html.parser")
+                # Remove script/style tags
+                for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+                    tag.decompose()
+                
+                title = soup.title.string.strip() if soup.title else "No title"
+                text = soup.get_text(separator="\n", strip=True)[:2000]
+                duration = (perf_counter() - start) * 1000
+                
+                status_html += f'<li style="color:#16a34a">✓ Scraped: {title[:60]} ({duration:.0f}ms)</li>'
+                results.append({
+                    "url": url, 
+                    "type": "web", 
+                    "title": title,
+                    "text": text, 
+                    "success": True
+                })
+                session_logger.log_scraper(url, True, "web_scrape", duration, title=title[:100])
+                
+        except Exception as e:
+            duration = (perf_counter() - start) * 1000
+            status_html += f'<li style="color:#dc2626">✗ Failed: {str(e)[:60]}</li>'
+            results.append({"url": url, "type": "error", "error": str(e), "success": False})
+            session_logger.log_scraper(url, False, "fetch", duration, error=str(e)[:100])
+    
+    status_html += '</ul></div>'
+    
+    return status_html, results
+
+
 def submit_handler(
     ing_a, sup_a, ing_b, sup_b,
     notes, coa_image, audio_file, video_file, pdf_file,
-    state,
+    state, progress=gr.Progress(),
 ):
+    # Log evaluation start
+    session_logger.info("Evaluation started", extra={
+        "ingredient_a": ing_a,
+        "ingredient_b": ing_b,
+        "supplier_a": sup_a,
+        "supplier_b": sup_b,
+        "has_notes": bool(notes and notes.strip()),
+        "has_coa_image": coa_image is not None,
+        "has_audio": audio_file is not None,
+        "has_video": video_file is not None,
+        "has_pdf": pdf_file is not None,
+    })
+    
     if not ing_a.strip() or not ing_b.strip():
+        session_logger.warning("Evaluation rejected - missing ingredient names")
         return (
             "**Please enter Ingredient A and Ingredient B names.**  \n"
             "*For an overall supply chain health check, use the **📊 General Assessment** tab.*",
@@ -492,12 +663,27 @@ def submit_handler(
             gr.update(interactive=False), state,
         )
 
+    # Progress: Document ingestion (0-20%)
+    progress(0.05, desc="Processing uploaded documents...")
+    
     # Assemble multimodal parts
-    parts, labels = _build_parts(notes, coa_image, audio_file, video_file, pdf_file)
+    with log_operation(session_logger, "build_parts", "ui"):
+        parts, labels = _build_parts(notes, coa_image, audio_file, video_file, pdf_file)
+    
+    session_logger.info("Parts assembled", extra={"part_count": len(parts), "labels": labels})
+    
+    # Progress: URL fetching (20-40%) - if URLs were detected
+    progress(0.20, desc="Fetching external data...")
 
+    # Progress: Compliance extraction (40-60%)
+    progress(0.40, desc="Extracting compliance data...")
+    
     # Extract compliance data for ingredient B from all uploaded documents
     comp_b = _extract_compliance(parts, sup_b or "Unknown Supplier", ing_b)
     comp_b.setdefault("organic_certified", False)
+    
+    # Progress: RAG retrieval (60-80%)
+    progress(0.60, desc="Querying RAG index...")
 
     # Ingredient A: use a reasonable pharmaceutical baseline
     comp_a = {
@@ -507,11 +693,15 @@ def submit_handler(
         "notes": "Baseline — standard pharmaceutical-grade reference.",
     }
 
+    # Progress: LLM evaluation (80-100%)
+    progress(0.80, desc="Running LLM evaluation...")
+
     # Evaluate (no auto-store)
-    result, docs = _evaluate(
-        ing_a, sup_a or "Current Supplier", comp_a,
-        ing_b, sup_b or "Proposed Supplier", comp_b,
-    )
+    with log_operation(session_logger, "rag_evaluate", "rag"):
+        result, docs = _evaluate(
+            ing_a, sup_a or "Current Supplier", comp_a,
+            ing_b, sup_b or "Proposed Supplier", comp_b,
+        )
 
     new_state = {
         "result": result, "docs": docs,
@@ -523,7 +713,23 @@ def submit_handler(
         "last_verdict": result.get("recommendation"),
     }
 
+    # Progress: Complete
+    progress(1.0, desc="Evaluation complete!")
+    
     verdict = result.get("recommendation", "HUMAN_REVIEW_REQUIRED")
+    confidence = result.get("confidence", 0.0)
+    
+    # Log evaluation completion
+    session_logger.log_evaluation(
+        ingredient_a=ing_a,
+        ingredient_b=ing_b,
+        verdict=verdict,
+        confidence=confidence,
+        supplier_a=sup_a or "Current Supplier",
+        supplier_b=sup_b or "Proposed Supplier",
+        docs_retrieved=len(docs),
+    )
+    
     card  = _make_card(result, labels, comp_b)
     badge = _verdict_badge(verdict)
     return (
@@ -538,8 +744,18 @@ def submit_handler(
 
 def apply_handler(state):
     if not state:
+        session_logger.warning("Apply attempted with no evaluation")
         return "No evaluation to apply.", state, _load_history()
     r = state["result"]
+    verdict = r.get("recommendation", "")
+    
+    session_logger.info("Decision applied by user", extra={
+        "ingredient_a": state["ing_a"],
+        "ingredient_b": state["ing_b"],
+        "verdict": verdict,
+        "confidence": r.get("confidence", 0.0),
+    })
+    
     store_decision({
         "ingredient_a":    state["ing_a"],
         "ingredient_b":    state["ing_b"],
@@ -555,7 +771,6 @@ def apply_handler(state):
         "evidence_trail":  r.get("evidence_trail", []),
         "sources_cited":   r.get("sources_cited", []),
     })
-    verdict = r.get("recommendation", "")
     return (
         f"**Decision saved** — `{verdict}` stored in KB/decisions.json.",
         None,
@@ -565,12 +780,26 @@ def apply_handler(state):
 
 def alternative_handler(state):
     if not state:
+        session_logger.warning("Alternative requested with no evaluation")
         return "Submit an evaluation first.", state
+    
     if state["alt_count"] >= 3:
+        session_logger.info("Maximum alternatives reached", extra={
+            "alt_count": state["alt_count"],
+            "ingredient_a": state["ing_a"],
+            "ingredient_b": state["ing_b"],
+        })
         return "**No more alternatives** — maximum 3 alternatives reached. Please apply or reject.", state
-
+    
     alt_num = state["alt_count"] + 1
     last_verdict = state.get("last_verdict")
+    
+    session_logger.info(f"Generating alternative #{alt_num}", extra={
+        "alt_num": alt_num,
+        "ingredient_a": state["ing_a"],
+        "ingredient_b": state["ing_b"],
+        "previous_verdict": last_verdict,
+    })
 
     result, docs = _evaluate(
         state["ing_a"], state["sup_a"], state["comp_a"],
@@ -582,6 +811,19 @@ def alternative_handler(state):
     new_state = {**state, "result": result, "docs": docs,
                  "alt_count": alt_num, "last_verdict": result.get("recommendation")}
     verdict = result.get("recommendation", "HUMAN_REVIEW_REQUIRED")
+    confidence = result.get("confidence", 0.0)
+    
+    session_logger.log_evaluation(
+        ingredient_a=state["ing_a"],
+        ingredient_b=state["ing_b"],
+        verdict=verdict,
+        confidence=confidence,
+        supplier_a=state["sup_a"],
+        supplier_b=state["sup_b"],
+        is_alternative=True,
+        alt_num=alt_num,
+    )
+    
     card  = _make_card(result, state["labels"], state["comp_b"], alt_num=alt_num)
     badge = _verdict_badge(verdict)
     return card, badge, new_state
@@ -589,7 +831,16 @@ def alternative_handler(state):
 
 def reject_handler(state):
     if not state:
+        session_logger.warning("Reject attempted with no evaluation")
         return "No evaluation to reject.", state, _load_history()
+    
+    session_logger.info("Decision rejected by user", extra={
+        "ingredient_a": state["ing_a"],
+        "ingredient_b": state["ing_b"],
+        "previous_verdict": state["result"].get("recommendation"),
+        "confidence": state["result"].get("confidence", 0.0),
+    })
+    
     store_decision({
         "ingredient_a":    state["ing_a"],
         "ingredient_b":    state["ing_b"],
@@ -924,10 +1175,24 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
                             ),
                             lines=3,
                         )
+                        # URL detection UI
+                        url_status = gr.HTML(
+                            '<div style="color:#94a3b8;font-size:0.85rem;padding:4px 0">'
+                            'URLs detected: 0</div>',
+                            visible=True,
+                        )
+                        with gr.Row():
+                            detect_btn = gr.Button("🔍 Detect URLs", size="sm", variant="secondary")
+                            fetch_btn = gr.Button("📥 Fetch URL Details", size="sm", variant="primary", interactive=False)
+                        fetch_status = gr.HTML(visible=False)
+                        
                         coa_image  = gr.Image(label="CoA Image (PNG/JPG)",  type="filepath")
                         audio_file = gr.Audio(label="Audio Note (MP3/WAV)", type="filepath")
                         video_file = gr.Video(label="Video (facility/demo)")
                         pdf_file   = gr.File(label="PDF Document",          file_types=[".pdf"])
+                        
+                        # Hidden state for detected URLs
+                        detected_urls_state = gr.State([])
 
                     evaluate_btn = gr.Button("⚡ Evaluate", variant="primary", size="lg")
 
@@ -981,7 +1246,61 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
             )
             refresh_btn = gr.Button("🔄 Refresh", variant="secondary", size="sm")
 
+        # ══════════════════════════════════════════════════════════════════
+        # TAB 4 — Session Logs
+        # ══════════════════════════════════════════════════════════════════
+        with gr.TabItem("🔍  Session Logs"):
+            gr.Markdown("View real-time session activity and system events for debugging.")
+            
+            session_info = gr.HTML(
+                f'<div style="color:#64748b;font-size:0.85rem;padding:8px 0">'
+                f'Session ID: {session_logger.session_id if session_logger else "N/A"}<br>'
+                f'Log file: {session_logger.session_file_path if session_logger else "N/A"}'
+                f'</div>'
+            )
+            
+            log_filter = gr.Dropdown(
+                choices=["All", "INFO", "WARNING", "ERROR", "DEBUG"],
+                value="All",
+                label="Filter by level",
+            )
+            
+            session_logs = gr.Textbox(
+                label="Session Activity Log",
+                lines=20,
+                max_lines=40,
+                interactive=False,
+                value="Click refresh to load session logs...",
+            )
+            
+            with gr.Row():
+                refresh_logs_btn = gr.Button("🔄 Refresh Logs", variant="secondary", size="sm")
+                download_logs_btn = gr.Button("⬇️ Download Session Log", variant="secondary", size="sm")
+            
+            system_status = gr.HTML(
+                '<div style="color:#94a3b8;font-size:0.85rem;padding:8px 0">'
+                'System log: logs/system.log</div>'
+            )
+
     # ── Wire up handlers ──────────────────────────────────────────────────
+    
+    # URL detection handlers
+    detect_btn.click(
+        fn=detect_urls,
+        inputs=[notes],
+        outputs=[url_status, detected_urls_state],
+    ).then(
+        fn=lambda urls: gr.update(interactive=bool(urls)),
+        inputs=[detected_urls_state],
+        outputs=[fetch_btn],
+    )
+    
+    fetch_btn.click(
+        fn=fetch_url_details,
+        inputs=[detected_urls_state],
+        outputs=[fetch_status, gr.State()],  # State stores results for later use
+    )
+    
     evaluate_btn.click(
         fn=submit_handler,
         inputs=[ing_a, sup_a, ing_b, sup_b, notes, coa_image,
@@ -1012,6 +1331,13 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
         fn=lambda: (_history_stats_html(), _load_history()),
         inputs=[],
         outputs=[history_stats, history_table],
+    )
+    
+    # Session logs refresh handler
+    refresh_logs_btn.click(
+        fn=_load_session_logs,
+        inputs=[log_filter],
+        outputs=[session_logs],
     )
 
 
