@@ -27,6 +27,28 @@ B2B
 
 **ERD** stands for **Entity-Relationship Diagram**. 
 
+
+| infer<br>normalized<br>procurement<br>sourcing<br>historical procurement decisions<br>substitutable<br>inferring<br>cons-industry sourcing<br>ingests<br>agnostic | استنتاج<br>معياري<br>شراء<br>مصادر<br>قرارات الشراء التاريخية<br>قابل للاستبدال<br>استنتاج<br>مصادر صناعية مستهلكة<br>يستوعب<br>محايد |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+|                                                                                                                                                                   |                                                                                                                                       |
+
+The key fix: the approved set now includes APPROVE, APPROVE_WITH_CONDITIONS, and HUMAN_REVIEW_REQUIRED — only REJECT is excluded.
+
+# Why volume × compliance?
+  • BOM appearances = demand proxy (each = one finished product needing this ingredient)
+  • compliance_weight ensures a food-grade supplier with better lead time
+    cannot outrank a pharmaceutical-grade supplier when the products are
+    dietary supplements. Agnes never sacrifices compliance for convenience.
+## compliance_weight components:
+  base        +1.0
+  pharma      +0.2
+  fda         +0.1
+  non_gmo     +0.1
+  per cert    +0.05 (capped at +0.30)
+  technical   −0.30
+  minimum      0.10
+
+
 ---
 ### **Hackathon Use Case: Give our AI Supply Chain Manager ‘Agnes’ Raw Material Superpowers**
 
