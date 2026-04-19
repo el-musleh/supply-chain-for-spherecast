@@ -708,6 +708,19 @@ python -m ipykernel install --user --name=agnes
 - Check Google AI Studio status and rate limits
 - Review error messages in Cell 5 output
 
+### Issue: 429 RESOURCE_EXHAUSTED Error in Gradio UI
+
+**Symptoms**: Result card shows raw JSON error mentioning `429` or `RESOURCE_EXHAUSTED`
+
+**Cause**: Google Gemini free tier has a daily call limit (~20 calls/day). Agnes makes 2–3 Gemini calls per evaluation.
+
+**Solution**:
+- The `_gemini_generate()` wrapper automatically retries with a delay parsed from the `retryDelay` hint in the error
+- If retries are exhausted, a friendly message is shown: "Rate limit reached. Please wait a moment and try again."
+- Wait 30–60 seconds and retry the evaluation
+- For higher quotas, upgrade to a paid Gemini API tier
+- To conserve quota, Agnes merges identity + compliance extraction into one call (reducing 4 calls to 2–3)
+
 ### Issue: Monitoring Log Not Created
 
 **Symptoms**: `agnes_monitoring_log.json` missing after running Cell 5.5
@@ -826,6 +839,25 @@ Cell 5 (LLM)
 ---
 
 ## Changelog
+
+### 2026-04-19
+
+**Added (Gradio UI — `agnes_ui.py`)**:
+- **Database Explorer tab** (5th tab): Company Catalog and Supplier Catalog with live SQL views and text filters
+- **Email parsing**: Paste a raw procurement email → Agnes extracts ingredient name, supplier, and shortage context
+- **Optional Ingredient B**: Ingredient B field is now optional — Agnes auto-discovers the best alternative via Gemini when left blank
+- **Supply Scenario accordion**: PO vs Transfer Order decision algorithm (3-step feasibility gate + cost comparison) embedded into the evaluation
+- **Document-only evaluation**: Uploading a CoA image or PDF without filling in ingredient name now triggers a full evaluation — Agnes extracts identity from the document
+- **429 rate-limit resilience**: `_gemini_generate()` wrapper retries with `retryDelay` hint parsing and shows a friendly message instead of raw JSON on exhaustion
+- **API call efficiency**: Combined identity + compliance extraction reduces Gemini calls from 4 to 2–3 per evaluation
+- **New verdict types**: SPLIT_PO, FULL_REPLACE, TRANSFER_ORDER, SPLIT_TO_PO
+- **UI redesign**: `gr.themes.Soft` with Inter font, `#2563eb` blue accent, clean white header, light table headers
+
+**Fixed:**
+- Image-only submission silently failing (hard guard fired before parts were assembled)
+- Raw 429 JSON error appearing in result card
+- Duplicate `_CSS` variable block
+- Syntax error in `supplier_table` Dataframe call (unclosed parenthesis)
 
 ### 2026-04-18
 

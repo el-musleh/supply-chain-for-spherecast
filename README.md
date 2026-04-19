@@ -101,11 +101,15 @@ pipx inject jupyterlab gradio beautifulsoup4 requests python-dotenv plotly
 python agnes_ui.py
 ```
 
-The UI opens on `http://localhost:7860` and features 4 tabs:
+The UI opens on `http://localhost:7860` and features **5 tabs**:
 
 ### 🔍 Evaluate Substitution
-- **Inputs**: Ingredient A/B names, supplier names, and optional supporting evidence
-- **6 Input Types**: Text notes, CoA images, audio notes, facility videos, PDF documents, and URLs
+- **Ingredient A (required)**: Enter the baseline ingredient name and current supplier — Agnes auto-discovers the best alternative
+- **Ingredient B (optional)**: Manually override the proposed substitute if desired; leave blank for auto-discovery
+- **Email Paste**: Paste a raw supplier/procurement email — Agnes extracts the ingredient, supplier, and shortage context automatically
+- **Supply Scenario (optional)**: Enter partial-supply quantities, branch stock, safety stock, freight costs, and lead times — Agnes runs a PO vs. Transfer Order decision algorithm and embeds the recommendation into the evaluation
+- **6 Evidence Input Types**: Text notes, CoA images, audio notes, facility videos, PDF documents, and URLs
+  - Uploading documents alone (no ingredient name) is supported — Agnes extracts the ingredient identity from the document
 - **URL Detection**: Automatically detects URLs in notes and smart-routes them:
   - PDF links → Downloaded and extracted
   - Image links → Downloaded for Gemini Vision
@@ -114,6 +118,7 @@ The UI opens on `http://localhost:7860` and features 4 tabs:
 - **Confirmation Flow**: Apply / Show Alternative / Reject All before saving
 - **Alternatives**: Up to 3 alternative evaluations at higher temperatures
 - **RAG-Augmented**: Every evaluation cites regulatory sources [FDA], [USP], [NSF]
+- **Verdict Types**: APPROVE, REJECT, APPROVE_WITH_CONDITIONS, HUMAN_REVIEW_REQUIRED, SPLIT_PO, FULL_REPLACE, TRANSFER_ORDER, SPLIT_TO_PO
 
 ### 📊 General Assessment
 - **Portfolio-Wide Health Check**: No inputs required
@@ -139,6 +144,13 @@ The UI opens on `http://localhost:7860` and features 4 tabs:
 - **Session Info**: Session ID and log file path displayed
 - **Download Logs**: Export session logs for debugging
 - **System Log**: Reference to `logs/system.log` for system-wide events
+
+### 🗄️ Database Explorer
+- **Company Catalog**: Filter by company name or product type; dual dropdown
+  - Finished-good view: SKU + Raw_Materials (comma-separated component list)
+  - Raw-material view: Raw_Material_SKU + In_Stock + Used_In_Products
+- **Supplier Catalog**: Read-only view of all supplier → product relationships with text filter
+- Live SQL reads from `DB/db.sqlite` with no caching
 
 ### Troubleshooting
 - **KB file not found**: Run `python scrape_kb.py` to build the knowledge base
@@ -258,6 +270,218 @@ for query in queries:
 | `patch_notebook.py` | RAG cell injection |
 | `download_models.py` | Offline model caching |
 | `start.sh` | Production launcher with watchdog |
+
+## Hackathon Submission Summary
+
+### General Approach
+
+Agnes is an AI-powered decision-support system that consolidates fragmented raw material sourcing in the CPG industry. The technical approach combines:
+
+**1. Data Layer (SQLite + SQL Analytics)**
+- Parses structured SKU format (`RM-C{CompanyId}-{ingredient-name}-{8hexhash}`) to identify 143 fragmented ingredients purchased by 60 companies across 1,214 BOM appearances
+- Uses complex SQL CTEs to calculate consolidation opportunities and supplier coverage
+- Database contains 61 companies, 876 raw materials, 40 suppliers, 149 BOMs, 1,528 BOM components
+
+**2. Knowledge Layer (RAG - Retrieval Augmented Generation)**
+- `rag_engine.py` implements FAISS HNSW (M=32) vector index + BM25 Okapi keyword search
+- `all-MiniLM-L6-v2` embeddings (384-dim) for semantic search
+- Cross-encoder reranker (`ms-marco-MiniLM-L-6-v2`) filters top-5 to top-3 results
+- 20 real regulatory documents scraped (FDA 21 CFR 111, DSHEA, USP Verification, NSF/ANSI 173, Halal/Kosher standards, Non-GMO Project)
+- Hybrid search formula: `0.65 × vector_score + 0.35 × bm25_score`
+
+**3. Reasoning Layer (Gemini Flash LLM)**
+- `gemini-flash-latest` via `google-genai` SDK with structured JSON output
+- System prompt encodes compliance guardrails (no grade downgrades, evidence required, confidence-based escalation)
+- Temperature 0.2 for consistent, factual reasoning
+- RAG-retrieved context injected into system instruction before evaluation
+- Evidence trail items must cite `[Source]` brackets for auditability
+
+**4. Optimization Layer (Multi-Criteria Scoring)**
+- Compliance weight formula: base 1.0 + grade modifiers + certification bonuses (capped at +0.30)
+- Go-Fish trust score system (PROBATION through PLATINUM tiers, 0.5x to 1.5x multipliers)
+- Consolidation score: `bom_appearances_covered × compliance_weight × trust_multiplier`
+- Hungarian-algorithm bipartite matching for optimal disruption rerouting
+
+**5. Interface Layer (Gradio Web UI)**
+- Production-ready web app on port 7860 with 5 tabs
+- 6 input types: text, image (CoA), audio, video, PDF, URL
+- Smart URL routing (HTML→text, PDF→bytes, image→bytes)
+- Confirmation flow: Apply / Show Alternative / Reject All
+- Session logging with structured JSON logs
+- Database explorer with live SQL views
+
+**6. Self-Awareness Layer (Monitoring & Healing)**
+- Self-healing: Exponential backoff retry logic (3 attempts, temperature tuning)
+- Self-monitoring: Confidence tracking with health status (HEALTHY/CAUTION/WARNING)
+- Self-explanation: Dual evidence trails (technical + business executive summary)
+- Historical memory: Decisions persisted to `KB/decisions.json` with precedent retrieval
+- RAGAS-lite evaluation: Faithfulness, answer relevance, context recall metrics
+
+### What Worked
+
+**✅ RAG Grounding in Real Regulatory Knowledge**
+- Every LLM decision is grounded in retrieved regulatory documents, not just training data
+- Source citations (`[USP Verification Program]`, `[FDA 21 CFR 111]`) make evidence trails auditable
+- Hybrid search balances semantic understanding with keyword matching
+- Cross-encoder reranking improves precision from top-5 to top-3
+
+**✅ Compliance Guardrails and Evidence Requirements**
+- System prompt hard-encodes rules preventing dangerous downgrades (pharma→food never allowed without explicit justification)
+- Evidence trail requirement forces LLM to justify decisions with specific facts
+- Confidence-based escalation (0.7 threshold) triggers human review for uncertain cases
+- Native JSON output eliminates markdown parsing complexity
+
+**✅ Multi-Modal Input Support**
+- Gradio UI accepts text, images, audio, video, PDFs, and URLs
+- Smart URL routing detects content type and routes appropriately
+- Gemini Vision extracts structured compliance data from uploaded documents
+- Confirmation flow prevents accidental decision persistence
+
+**✅ Trust-Based Supplier Scoring**
+- Go-Fish system tracks delivery history and calculates dynamic trust scores
+- Trust tiers (PROBATION through PLATINUM) with multipliers (0.5x to 1.5x)
+- Enables suppliers with slightly worse compliance but better reliability to rank higher
+- Creates accountability and performance incentives
+
+**✅ Disruption Simulation and Contingency Planning**
+- Cell 10 simulates supplier failure scenarios
+- Identifies affected ingredients, BOMs, and alternate suppliers
+- Classifies exposure (MANAGEABLE vs CRITICAL)
+- Generates LLM-powered contingency plan with timeline (24h, Week 1, Month 1)
+
+**✅ Cross-Cluster Ingredient Detection**
+- Identifies substitution opportunities across name variants (e.g., vitamin-d3 → vitamin-d3-cholecalciferol)
+- Combines demand across clusters for larger consolidation opportunities
+- LLM evaluates if different names represent the same chemical substance
+- Grade-based reasoning allows food→pharma upgrades when appropriate
+
+**✅ Self-Awareness Capabilities**
+- Self-healing retry logic handles transient API failures gracefully
+- Self-monitoring tracks confidence distribution and flags low-confidence evaluations
+- Self-explanation provides business-friendly executive summaries
+- Historical decision memory enables precedent-based consistency
+
+**✅ Production-Ready Infrastructure**
+- `start.sh` launcher with watchdog, prerequisite checks, and auto-restart
+- `download_models.py` caches ML models locally for offline operation
+- Comprehensive logging with `logging_config.py`
+- Unit and integration tests with pytest
+- Ethical web scraping layer with robots.txt compliance and rate limiting
+
+### What Did Not Work
+
+**❌ Mock Compliance Data Instead of Real Scraping**
+- Time constraints and ethical concerns prevented full implementation of Playwright scrapers
+- Compliance data is hardcoded in Python dict rather than dynamically fetched
+- No real integration with FDA Substance Registration System API
+- Teacher-Student LLM synthetic data generation exists but not extensively tested
+
+**❌ Simulated Trust Scores Instead of ERP Integration**
+- Supplier delivery history is simulated with seeded random, not from real ERP/TMS systems
+- Trust scores don't reflect actual performance data
+- No real-time supplier monitoring or status change detection
+- Production would require integration with SAP, Oracle, or similar systems
+
+**❌ Sequential Processing Instead of Parallel LLM Calls**
+- Full portfolio analysis (143 ingredients) takes ~12 minutes sequentially
+- No async/await implementation for concurrent LLM evaluations
+- Could be reduced to ~30 seconds with proper parallelization
+- Celery/Redis queue system not implemented
+
+**❌ SQLite Instead of Production Database**
+- SQLite lacks multi-user access, transaction safety at scale, and replication
+- No backup/recovery infrastructure
+- Production would require PostgreSQL or cloud SQL
+- Database schema not optimized for millions of BOMs
+
+**❌ Limited Real-Time Capabilities**
+- No continuous monitoring of supplier status changes
+- No certification expiration tracking
+- No regulatory update alerts
+- Dashboard is static, not live-updating
+
+**❌ Single Ingredient Focus in Demo**
+- Pipeline analyzes one ingredient (vitamin-d3-cholecalciferol) in detail
+- Risk heat map exists but full portfolio analysis not demonstrated
+- Cross-cluster analysis shown but not extensively validated
+- Production would require automated batch processing
+
+**❌ Limited Multimodal Extraction Testing**
+- Gemini Vision integration works but not extensively tested with diverse document types
+- Audio and video inputs accepted but not fully utilized in compliance extraction
+- PDF parsing works for simple CoAs but complex layouts may fail
+- No OCR for scanned documents
+
+### How to Improve the Submission
+
+**1. Implement Real Web Scraping Pipeline**
+- Deploy Playwright scrapers with anti-detection (stealth, rotating proxies)
+- Integrate with FDA Substance Registration System API
+- Query NSF/USP certification databases directly
+- Use multimodal LLM for PDF CoA extraction at scale
+- Implement robots.txt compliance with configurable crawl-delay
+
+**2. Add Parallel Processing Infrastructure**
+- Implement async/await for concurrent LLM calls
+- Add Celery/Redis queue system for background jobs
+- Reduce full portfolio analysis from 12 minutes to <30 seconds
+- Add rate limiting and cost tracking for LLM API usage
+
+**3. Upgrade to Production Database**
+- Migrate from SQLite to PostgreSQL
+- Implement connection pooling and transaction management
+- Add backup/recovery infrastructure
+- Optimize schema for millions of BOMs
+- Add database migration scripts
+
+**4. Expand Real-Time Monitoring**
+- Implement continuous supplier status monitoring
+- Add certification expiration tracking with alerts
+- Integrate regulatory update feeds (FDA, USP, NSF)
+- Build live-updating dashboard with WebSocket connections
+- Add Prometheus/Grafana for system metrics
+
+**5. Enhance Multimodal Capabilities**
+- Add OCR for scanned documents (Tesseract or cloud OCR)
+- Implement advanced PDF layout analysis
+- Add audio transcription for facility inspection notes
+- Implement video frame extraction for facility verification
+- Test with diverse document types and edge cases
+
+**6. Strengthen Evaluation Framework**
+- Implement full RAGAS metrics with NLI model for faithfulness
+- Add LLM-as-judge for answer relevance
+- Create curated benchmark dataset with ground truth
+- Add A/B testing framework for prompt engineering
+- Implement continuous evaluation pipeline
+
+**7. Improve Security and Compliance**
+- Implement HashiCorp Vault or AWS Secrets Manager for API keys
+- Add OAuth 2.0 authentication and role-based access control
+- Implement audit logging for all decisions
+- Add data encryption at rest and in transit
+- Conduct SOC 2 and GDPR compliance assessment
+
+**8. Expand Business Intelligence**
+- Add ROI calculation engine with actual pricing data
+- Implement predictive analytics for demand forecasting
+- Add supplier negotiation support with historical contract data
+- Build scenario planning tool for what-if analysis
+- Create executive dashboard with drill-down capabilities
+
+**9. Enhance User Experience**
+- Add collaborative features (comments, approvals, workflows)
+- Implement notification system for critical alerts
+- Add mobile-responsive design
+- Create onboarding tutorial and help documentation
+- Implement user preference management
+
+**10. Strengthen Testing and Quality Assurance**
+- Increase test coverage from 70% to 90%+
+- Add end-to-end integration tests
+- Implement load testing for concurrent users
+- Add chaos engineering for resilience testing
+- Create automated regression test suite
 
 ## Hackathon Success Notes
 

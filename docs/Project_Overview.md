@@ -72,6 +72,11 @@ The implementation extends the original Agnes concept with:
 - **RAG Compliance KB** - 20 real regulatory documents indexed for retrieval; every LLM verdict grounded in `[USP]`, `[FDA]`, `[NSF]` sources
 - **Historical Decision Memory** - Persists all verdicts to `KB/decisions.json`; similar past cases retrieved as precedent context
 - **RAGAS-lite Quality Evaluation** - Faithfulness, Answer Relevance, and Context Recall measured per evaluation (Cell 12-RAG)
+- **PO vs Transfer Order Algorithm** - 3-step feasibility gate: safety-stock check → cost comparison → scenario classification (A/B/C/D) producing TRANSFER_ORDER, SPLIT_TO_PO, SPLIT_PO, or FULL_REPLACE verdicts
+- **Auto-Discovery of Ingredient B** - Gemini finds the best substitute automatically when Ingredient B is left blank
+- **Email Parsing** - Paste a raw procurement email; Agnes extracts ingredient, supplier, and shortage context
+- **Document-Only Evaluation** - Upload a CoA image or PDF without typing an ingredient name; Agnes extracts identity from the document and proceeds to full evaluation
+- **API Rate-Limit Resilience** - Centralized `_gemini_generate()` wrapper with 429 retry logic and `retryDelay` hint parsing; combined identity+compliance call reduces API calls from 4 to 2–3 per evaluation
 
 ## Hackathon Context
 

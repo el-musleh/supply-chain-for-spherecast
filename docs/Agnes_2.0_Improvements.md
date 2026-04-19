@@ -870,7 +870,96 @@ python agnes_ui.py
 
 ---
 
-### 10. Production Readiness Improvements
+### 10. PO vs. Transfer Order (TO) Smart Decision Algorithm
+
+**Purpose**: When a supplier can only partially fill an order, or when another branch holds excess inventory, Agnes determines whether to issue a Purchase Order (PO), a Transfer Order (TO), or a split between both.
+
+**Trigger**: The "Supply Scenario" accordion in the Evaluate Substitution tab. Fields:
+- Needed quantity + unit
+- Supplier-available quantity (partial supply indicator)
+- PO unit cost + lead time
+- Branch name, branch current stock, branch safety stock limit
+- TO internal freight cost per unit + TO lead time
+- Factory buffer days (how many days of stock the factory needs before running dry)
+
+**Three-Step Algorithm (`decide_po_vs_to()`)**:
+
+1. **Step 1 — TO Feasibility Gate**
+   - `available = branch_current_stock − branch_safety_limit`
+   - If `available ≤ 0` → TO is not feasible; go to PO-only path
+   - If `available ≥ needed_qty` → full TO is possible
+
+2. **Step 2 — Cost Comparison**
+   - `po_total = needed_qty × po_unit_cost + po_shipping`
+   - `to_total = available_to_transfer × to_freight_per_unit`
+   - Compare per-unit landed cost
+
+3. **Step 3 — Scenario Classification**
+   - **Scenario A** — No-brainer TO: TO is cheaper AND faster → `TRANSFER_ORDER`
+   - **Scenario B** — Cost-saver TO: TO is cheaper but slower; within buffer days → `TRANSFER_ORDER`
+   - **Scenario C** — Emergency PO: TO is too slow for factory buffer → `SPLIT_TO_PO` or pure PO
+   - **Scenario D** — Bulk PO: PO is cheaper at volume → `SPLIT_PO` or `FULL_REPLACE`
+
+**Output**: A `scenario_block` text block appended to the LLM's user message so the LLM reasons about the supply decision and populates `decision_options[]` in its JSON response.
+
+**New verdict types added**:
+- `TRANSFER_ORDER` — move inventory from a branch instead of ordering
+- `SPLIT_TO_PO` — split: take what's available via TO, fill the rest with a PO
+- `SPLIT_PO` — partial supplier fill + wait for the rest
+- `FULL_REPLACE` — switch entirely to proposed alternative
+
+---
+
+### 11. Auto-Discovery of Ingredient B
+
+**Purpose**: Users no longer need to research an alternative ingredient manually. Providing only Ingredient A triggers Agnes to find the best substitute automatically.
+
+**Implementation**:
+- `_find_alternative(ing_a, sup_a)` — Gemini call that returns the most functionally equivalent ingredient name and a reputable alternate supplier
+- If the user fills in Ingredient B manually, the manual value is used (auto-discovery skipped)
+- The auto-discovered Ingredient B is shown in the result card header so the user sees what Agnes chose
+
+---
+
+### 12. Email Parsing
+
+**Purpose**: Procurement teams receive supplier shortage alerts by email. Agnes can read a pasted email and extract the relevant ingredient name, supplier, and shortage context — pre-filling the evaluation form automatically.
+
+**Implementation**:
+- `_parse_email(text)` — Gemini call on the raw email body, returns `(ingredient, supplier, badge_html)`
+- A colored badge shows the extraction result (e.g., "Extracted: vitamin-d3-cholecalciferol / Prinova USA")
+- Extracted values are injected into Ingredient A and Current Supplier fields
+
+---
+
+### 13. Document-Only Evaluation (Auto-Extract Identity)
+
+**Purpose**: A CoA image or PDF alone should be sufficient to trigger an evaluation — the user should not need to type the ingredient name if the document contains it.
+
+**Original Limitation**: Hard guard `if not ing_a.strip(): return early` fired before documents were even assembled, making image-only submission silently fail.
+
+**Fix**:
+- `_build_parts()` is now called before the `ing_a` validation
+- If parts exist but `ing_a` is blank, a combined Gemini call (`_extract_identity_and_compliance()`) extracts the ingredient name, supplier, and compliance data from the document
+- A notice is shown in the result card: "Ingredient identity extracted from uploaded document(s): **{ing_a}** / **{sup_a}**"
+- The combined call also retrieves compliance data, reducing the total Gemini calls needed from 4 to 2–3 per evaluation
+
+---
+
+### 14. API Rate-Limit Resilience (429 Handling)
+
+**Purpose**: Google Gemini free-tier has a 20 calls/day limit. Raw `429 RESOURCE_EXHAUSTED` JSON errors leaked into the result card, confusing users.
+
+**Fix**:
+- `_gemini_generate(contents, config, retries=3)` — centralized wrapper around all Gemini calls
+- Detects `429` / `RESOURCE_EXHAUSTED` in exception messages
+- Parses `retryDelay` hint from the error body (e.g., `retryDelay: 30s`) and sleeps accordingly
+- After exhausting retries, raises with a friendly message: "Rate limit reached. Please wait a moment and try again."
+- Combined identity+compliance extraction further reduces call count from 4 to 2–3 per evaluation
+
+---
+
+### 15. Production Readiness Improvements
 
 **Original Approach**: Limited error handling, no unified setup, minimal logging documentation.
 
@@ -942,12 +1031,18 @@ Checks .env, builds KB, downloads models, patches notebook, and provides summary
 | **RAG Knowledge Base** | None | 20 real regulatory docs (FDA, USP, NSF, Halal) | Grounded, source-cited decisions |
 | **Historical Memory** | None | Persistent verdict store + precedent retrieval | Cross-evaluation consistency |
 | **Quality Evaluation** | None | RAGAS-lite (Faithfulness, Relevance, Recall) | Measurable decision quality |
-| **Web Interface** | None | Gradio app with 6 input types | Accessibility for non-technical users |
+| **Web Interface** | None | Gradio app with 6 input types, 5 tabs | Accessibility for non-technical users |
 | **Error Handling** | Basic | Graceful degradation with clear messages | Prevents app crashes |
 | **Session Management** | None | Automatic cleanup + log download | Better debugging and audit trails |
 | **URL Resilience** | None | Retry logic with specific exceptions | Handles transient network failures |
 | **Unified Setup** | Manual steps | One-command full_setup.sh | Faster onboarding |
 | **Logging Docs** | None | Comprehensive Logging_Architecture.md | Better system understanding |
+| **PO vs TO Algorithm** | None | 3-step feasibility gate + cost comparison | Smart inventory rerouting |
+| **Auto-Discovery (Ingredient B)** | Manual input required | Gemini finds best substitute automatically | Faster evaluation workflow |
+| **Email Parsing** | None | Paste email → auto-extract ingredient/supplier | Zero-friction procurement intake |
+| **Document-Only Evaluation** | Blocked without text | CoA image/PDF alone triggers full evaluation | Richer multimodal evidence |
+| **429 Rate-Limit Resilience** | Raw JSON error shown | Retry with delay hint + friendly message | Better reliability on free tier |
+| **API Call Efficiency** | 4 calls per evaluation | 2–3 calls via combined identity+compliance | Reduces quota burn |
 
 ## Competitive Advantages
 

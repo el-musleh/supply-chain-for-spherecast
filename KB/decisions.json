@@ -403,5 +403,43 @@
       }
     ],
     "stored_at": "2026-04-19T10:14:28.823270"
+  },
+  {
+    "ingredient_a": "PRODUCT ONE version 3",
+    "ingredient_b": "PRODUCT ONE version 3",
+    "supplier_a": "Current Supplier",
+    "supplier_b": "Lonza",
+    "grade_a": null,
+    "grade_b": null,
+    "certifications_a": [],
+    "certifications_b": [],
+    "verdict": "APPROVE_WITH_CONDITIONS",
+    "confidence": 0.85,
+    "reasoning": "The ingredients are a nominal match, and moving to Lonza provides a more reliable Tier-1 supply chain without downgrading existing certifications, as none currently exist. Lonza can fulfill the entire 27,000-unit requirement, simplifying the supply chain. However, the lack of formal quality grading and FDA registration for both sources requires internal identity testing and COA verification to ens",
+    "evidence_trail": [
+      "Both ingredients share the identical nomenclature 'PRODUCT ONE version 3' [Source: User Data]",
+      "Neither ingredient possesses a specified quality grade such as USP, FCC, or Food Grade [Source: User Data]",
+      "Both sources are listed as FDA reg: False, which is a baseline risk under 21 CFR Part 111 [Source: FDA Dietary Supplement Questions and Answers]",
+      "Lonza can fulfill 100% of the 27,000 unit requirement [Source: Supply Scenario]",
+      "Lonza provides a documented supply pipeline through 2026 via SO-C-123, offering better long-term stability than the 'Unknown' current supplier [Source: User Data]"
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-organic-program",
+        "source": "USDA Agricultural Marketing Service",
+        "title": "USDA National Organic Program — Organic Certification Overview"
+      },
+      {
+        "id": "halal-ifanca",
+        "source": "IFANCA (Islamic Food and Nutrition Council of America)",
+        "title": "IFANCA Halal Certification — Standards and Requirements"
+      },
+      {
+        "id": "fda-ds-guidance",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Questions and Answers"
+      }
+    ],
+    "stored_at": "2026-04-19T10:26:44.264873"
   }
 ]
