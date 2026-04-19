@@ -926,13 +926,13 @@ def _load_company_products(company_id: int, product_type: str, filter_text: str 
         """
         df = pd.read_sql_query(query, conn, params=[company_id])
     else:  # raw-material
-        # Get raw materials with count of finished products that use them
-        # In_Stock = count of finished products + 1 (for the raw material itself)
+        # Get raw materials and their usage in finished products
+        # In_Stock = count of raw materials with the same ingredient name for this company
         # Used_In_Products = list of finished products + "Direct sold"
         query = """
             SELECT
                 p.SKU AS Raw_Material_SKU,
-                (COUNT(DISTINCT fg.Id) + 1) AS In_Stock,
+                0 AS In_Stock, -- Will be calculated in pandas
                 COALESCE(GROUP_CONCAT(DISTINCT fg.SKU), '') ||
                     CASE WHEN COUNT(DISTINCT fg.Id) > 0 THEN ', Direct sold' ELSE 'Direct sold' END
                     AS Used_In_Products
@@ -948,9 +948,12 @@ def _load_company_products(company_id: int, product_type: str, filter_text: str 
             ORDER BY p.SKU
         """
         df = pd.read_sql_query(query, conn, params=[company_id])
-    
-    conn.close()
-    
+
+        # Calculate In_Stock based on matching ingredient names
+        base_names = df['Raw_Material_SKU'].apply(_parse_ingredient_from_sku)
+        df['In_Stock'] = base_names.map(base_names.value_counts())
+
+    conn.close()    
     if filter_text and filter_text.strip():
         q = filter_text.strip().lower()
         if product_type == "finished-good":

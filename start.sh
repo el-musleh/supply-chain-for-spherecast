@@ -160,8 +160,18 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 
 open_browser() {
-    # Wait briefly then open the browser (best-effort; silently ignored if unavailable)
-    sleep 2
+    # Wait for the server to bind and respond
+    local max_attempts=30
+    local attempt=0
+    while (( attempt < max_attempts )); do
+        if >/dev/null 2>&1 < /dev/tcp/localhost/$PORT; then
+            break
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    sleep 1 # Brief pause to ensure the app is fully initialized
+
     if command -v xdg-open &>/dev/null; then
         xdg-open "http://localhost:$PORT" &>/dev/null &
     elif command -v open &>/dev/null; then
