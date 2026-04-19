@@ -359,5 +359,49 @@
       }
     ],
     "stored_at": "2026-04-19T09:48:19.770396"
+  },
+  {
+    "ingredient_a": "RM-C5-cinnamon-28c1b925",
+    "ingredient_b": "RM-C5-cinnamon-28c1b925",
+    "supplier_a": "ALoha",
+    "supplier_b": "Sabinsa",
+    "grade_a": "food",
+    "grade_b": "food",
+    "certifications_a": [
+      "USDA Organic",
+      "GMP",
+      "Kosher",
+      "Halal"
+    ],
+    "certifications_b": [],
+    "verdict": "REJECT",
+    "confidence": 0.98,
+    "reasoning": "The proposed substitute from Sabinsa is a significant quality and regulatory downgrade. It fails to meet any of the critical certifications (Organic, Kosher, Halal, GMP) required by the incumbent specification and lacks FDA registration. Furthermore, its discontinued status makes it operationally impossible to adopt as a long-term sourcing solution.",
+    "evidence_trail": [
+      "Ingredient B lacks FDA registration while Ingredient A is FDA registered [FDA Dietary Supplement Questions and Answers].",
+      "Ingredient B is listed as discontinued, making it a terminal risk for supply chain continuity.",
+      "Ingredient B lacks USDA Organic, GMP, Kosher, and Halal certifications held by Ingredient A.",
+      "Ingredient B is not verified as Non-GMO, whereas Ingredient A is.",
+      "Substitution would violate 21 CFR Part 101 labeling requirements as the finished product would lose its certified status [FDA Dietary Supplement Labeling Requirements].",
+      "Ingredient B lacks GMP verification, increasing risk under 21 CFR Part 111 regulations."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-ds-guidance",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Questions and Answers"
+      },
+      {
+        "id": "fda-supplement-labeling",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Labeling Requirements"
+      },
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements"
+      }
+    ],
+    "stored_at": "2026-04-19T10:14:28.823270"
   }
 ]
