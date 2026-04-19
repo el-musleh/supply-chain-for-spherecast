@@ -441,5 +441,404 @@
       }
     ],
     "stored_at": "2026-04-19T10:26:44.264873"
+  },
+  {
+    "ingredient_a": "SKU-13, SKU-1, SKU-2, SKU-3, SKU-7",
+    "ingredient_b": "SKU-13, SKU-1, SKU-2, SKU-3, SKU-7",
+    "supplier_a": "Current Supplier",
+    "supplier_b": "Prinova",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "Halal",
+      "GMP",
+      "USP"
+    ],
+    "certifications_b": [
+      "Halal",
+      "GMP",
+      "USP"
+    ],
+    "verdict": "APPROVE_WITH_CONDITIONS",
+    "confidence": 0.85,
+    "reasoning": "While both ingredients are technically substitutable based on their pharmaceutical grade and USP status, the 'secret product version 4' from Prinova introduces a functional identity risk. Because the lead times are identical and the risk tier is 'Unknown,' a hard cutover is economically and operationally risky. A phased transition with a trial batch is necessary to validate the chemical profile an",
+    "evidence_trail": [
+      "Both ingredients are classified as pharmaceutical grade and USP certified, meeting the highest regulatory standard for dietary supplements [Source 3].",
+      "Both suppliers are FDA registered and claim GMP compliance under 21 CFR Part 111 [Source 1].",
+      "Lead times for both suppliers are identical at 14 days, providing no immediate logistical advantage or disadvantage.",
+      "Prinova's documentation mentions a 'secret product version 4,' which introduces a potential discrepancy in 'Other Ingredients' or excipients [Source 3].",
+      "Identity testing (HPLC/Mass Spectrometry) is required to confirm that 'version 4' matches the current chemical profile [Source 2].",
+      "The current supplier's sales order lacks explicit certification documentation, creating a transparency gap."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-ds-guidance",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Questions and Answers"
+      },
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements"
+      },
+      {
+        "id": "fda-supplement-labeling",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Labeling Requirements"
+      }
+    ],
+    "stored_at": "2026-04-19T11:02:24.777813"
+  },
+  {
+    "ingredient_a": "cinnamon",
+    "ingredient_b": "cinnamon",
+    "supplier_a": "ALoha",
+    "supplier_b": "Sabinsa",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "Halal",
+      "GMP",
+      "USP"
+    ],
+    "certifications_b": [
+      "Halal",
+      "GMP",
+      "USP"
+    ],
+    "verdict": "APPROVE_WITH_CONDITIONS",
+    "confidence": 0.95,
+    "reasoning": "The proposed substitute from Sabinsa is a direct technical and regulatory match for the discontinued ALoha supply, meeting all USP, Halal, and GMP requirements. While the supplier risk tier is currently 'Unknown,' the identical certification profile and pharmaceutical grade status justify the transition. Confirmatory identity and potency testing are required for the initial batch to satisfy FDA th",
+    "evidence_trail": [
+      "Both ingredients are pharmaceutical grade and USP certified, ensuring identity and purity standards [FDA — Third-Party Testing and Certification of Dietary Supplements].",
+      "Both suppliers are FDA registered and maintain GMP certification.",
+      "Certification profiles are identical, including Halal [IFANCA Halal Certification — Standards and Requirements] and Non-GMO status.",
+      "Lead times are identical (14 days), maintaining supply chain velocity.",
+      "ALoha has discontinued the material, making the transition to a qualified alternative critical for business continuity."
+    ],
+    "sources_cited": [
+      {
+        "id": "halal-ifanca",
+        "source": "IFANCA (Islamic Food and Nutrition Council of America)",
+        "title": "IFANCA Halal Certification — Standards and Requirements"
+      },
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements"
+      },
+      {
+        "id": "fda-supplement-labeling",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Labeling Requirements"
+      }
+    ],
+    "stored_at": "2026-04-19T11:11:46.618463"
+  },
+  {
+    "ingredient_a": "vitamin-d3-cholecalciferol",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "PureBulk",
+    "grade_a": "pharmaceutical",
+    "grade_b": "food",
+    "certifications_a": [
+      "NSF",
+      "Halal",
+      "USP",
+      "Kosher",
+      "GMP"
+    ],
+    "certifications_b": [
+      "GMP",
+      "Halal"
+    ],
+    "verdict": "REJECT",
+    "confidence": 1.0,
+    "reasoning": "The proposed substitution is a significant downgrade in both quality grade and regulatory compliance. Ingredient B lacks critical third-party certifications (USP, NSF, Kosher) and FDA registration that are standard requirements for the high-profile CPG brands listed in the BOMs. Per regulatory guidelines, a substitute must meet or exceed the original's specifications; Ingredient B fails on multipl",
+    "evidence_trail": [
+      "Ingredient A is pharmaceutical grade, while Ingredient B is food grade. Downgrading from pharmaceutical to food grade is a violation of sourcing safety protocols.",
+      "Ingredient A holds USP (United States Pharmacopeia) certification; Ingredient B does not. USP standards are critical for identity and purity verification [1].",
+      "Ingredient A is NSF certified; Ingredient B is not. NSF certification is frequently required by major retailers and CPG brands like GNC and Nature Made [1].",
+      "Ingredient A is Kosher certified; Ingredient B is not. This would invalidate the Kosher status of any finished product using the consolidated ingredient.",
+      "The supplier for Ingredient A (Prinova USA) is FDA registered, whereas the supplier for Ingredient B (PureBulk) is not, increasing regulatory risk for the supply chain [2].",
+      "Ingredient A is categorized as a 'premium tier' synthetic profile, while Ingredient B is 'budget tier', indicating a likely difference in impurity profiles or manufacturing controls."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+        "score": -6.1488
+      },
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -6.2246
+      },
+      {
+        "id": "gmp-iso-22716",
+        "source": "U.S. FDA",
+        "title": "GMP (Good Manufacturing Practice) — Overview and Requirements",
+        "score": -6.9269
+      }
+    ],
+    "stored_at": "2026-04-19T11:15:00.799393"
+  },
+  {
+    "ingredient_a": "vitamin-d3",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "Prinova USA",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "Non-GMO Project",
+      "Kosher",
+      "USP"
+    ],
+    "certifications_b": [
+      "NSF",
+      "Halal",
+      "USP",
+      "Kosher",
+      "GMP"
+    ],
+    "verdict": "REJECT",
+    "confidence": 0.95,
+    "reasoning": "While Ingredient B is a 'premium tier' synthetic with additional quality certifications like NSF and GMP, it lacks the Non-GMO Project certification held by Ingredient A. For CPG brands like New Chapter and Vitacost, which often market based on non-GMO status, this substitution would result in a mislabeling or adulteration risk if the finished product claims to be Non-GMO [3].",
+    "evidence_trail": [
+      "Both Ingredient A and Ingredient B are pharmaceutical grade and meet USP monograph specifications [1].",
+      "Ingredient A holds 'Non-GMO Project' certification, which is a specific third-party verification for non-genetically modified status.",
+      "Ingredient B is explicitly listed as 'Non-GMO: False' and lacks the Non-GMO Project certification.",
+      "Affected brands such as New Chapter and Vitacost frequently utilize Non-GMO claims as a core product attribute.",
+      "Per regulatory guidelines, a substitution must meet or exceed the compliance level of the original; Ingredient B fails to meet the Non-GMO requirement of Ingredient A [3].",
+      "Lead time for Ingredient B (11 days) is significantly longer than Ingredient A (4 days), potentially impacting production schedules for the 14 BOM appearances."
+    ],
+    "sources_cited": [
+      {
+        "id": "usp-grade-definition",
+        "source": "U.S. Pharmacopeia (USP)",
+        "title": "USP Pharmaceutical Grade vs Food Grade — Standards Overview",
+        "score": -6.3547
+      },
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+        "score": -6.5518
+      },
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -6.9954
+      }
+    ],
+    "stored_at": "2026-04-19T11:15:08.132374"
+  },
+  {
+    "ingredient_a": "vitamin-d3-cholecalciferol",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "PureBulk",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "USP",
+      "GMP",
+      "Kosher",
+      "Halal",
+      "NSF"
+    ],
+    "certifications_b": [
+      "USP",
+      "GMP",
+      "Kosher",
+      "Halal"
+    ],
+    "verdict": "REJECT",
+    "confidence": 0.95,
+    "reasoning": "Although both ingredients are pharmaceutical grade and USP compliant, Ingredient B lacks the NSF certification found in Ingredient A. For a consolidation involving high-compliance brands like GNC, Kirkland Signature, and Nature Made, third-party certifications like NSF are often mandatory for retail acceptance and quality assurance [1].",
+    "evidence_trail": [
+      "Both ingredients are chemically identical: synthetic Cholecalciferol derived from lanolin.",
+      "Both ingredients are listed as pharmaceutical grade and maintain USP compliance.",
+      "Ingredient A (Prinova USA) holds NSF certification, which is a recognized third-party verification for dietary supplements [1].",
+      "Ingredient B (PureBulk) lacks the NSF certification held by Ingredient A.",
+      "The business context includes brands such as GNC, Kirkland Signature, and Nature Made, which often require NSF or USP third-party verification to meet retailer standards and label claims [1].",
+      "Per internal rules, a substitution is only valid if the replacement meets or exceeds the compliance level of the original; Ingredient B fails this due to the missing NSF certification."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements",
+        "score": -5.6313
+      },
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -5.7324
+      },
+      {
+        "id": "gmp-iso-22716",
+        "source": "U.S. FDA",
+        "title": "GMP (Good Manufacturing Practice) — Overview and Requirements",
+        "score": -6.8125
+      }
+    ],
+    "stored_at": "2026-04-19T11:18:33.363144"
+  },
+  {
+    "ingredient_a": "vitamin-d3",
+    "ingredient_b": "vitamin-d3-cholecalciferol",
+    "supplier_a": "Prinova USA",
+    "supplier_b": "Prinova USA",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "USP",
+      "GMP",
+      "Kosher",
+      "Halal",
+      "Non-GMO Project Verified"
+    ],
+    "certifications_b": [
+      "USP",
+      "GMP",
+      "Kosher",
+      "Halal"
+    ],
+    "verdict": "REJECT",
+    "confidence": 0.95,
+    "reasoning": "While both ingredients are chemically identical (lanolin-derived Vitamin D3) and share USP, GMP, Kosher, and Halal certifications, Ingredient B lacks the 'Non-GMO Project Verified' status held by Ingredient A. For brands like New Chapter and Vitacost, this specific third-party verification is often a core requirement for their product labels, and substituting with a non-verified version would lead",
+    "evidence_trail": [
+      "Both ingredients are pharmaceutical grade and meet USP monograph requirements for Cholecalciferol [2].",
+      "Ingredient A holds 'Non-GMO Project Verified' certification, a specific third-party seal.",
+      "Ingredient B is listed as Non-GMO but lacks the 'Non-GMO Project Verified' certification.",
+      "Affected brands include New Chapter and Vitacost, which frequently utilize third-party non-GMO seals for marketing and label claims [Precedent Case 1].",
+      "FDA regulations define misbranding as a failure to meet label claims or providing misleading information [1].",
+      "A substitution is invalid if the replacement does not meet or exceed the compliance level of the original (Critical Rules)."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance",
+        "score": -5.3605
+      },
+      {
+        "id": "gmp-iso-22716",
+        "source": "U.S. FDA",
+        "title": "GMP (Good Manufacturing Practice) — Overview and Requirements",
+        "score": -5.6341
+      },
+      {
+        "id": "nsf-173",
+        "source": "NSF International",
+        "title": "NSF/ANSI 173 — Dietary Supplements Standard",
+        "score": -5.8426
+      }
+    ],
+    "stored_at": "2026-04-19T11:18:47.468447"
+  },
+  {
+    "ingredient_a": "RM-C5-cinnamon-28c1b925",
+    "ingredient_b": "RM-C5-cinnamon-28c1b925",
+    "supplier_a": "ALoha",
+    "supplier_b": "Sabinsa Corporation",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "GMP",
+      "USDA Organic",
+      "Kosher",
+      "Halal"
+    ],
+    "certifications_b": [
+      "USDA Organic",
+      "Non-GMO Project Verified",
+      "GMP",
+      "Kosher",
+      "Halal"
+    ],
+    "verdict": "APPROVE_WITH_CONDITIONS",
+    "confidence": 0.95,
+    "reasoning": "The Sabinsa ingredient is a high-confidence functional and regulatory match for the Aloha cinnamon extract. It meets or exceeds all quality benchmarks, including pharmaceutical grade and third-party Non-GMO verification. Given the current unavailability of the Aloha stock, Sabinsa is the optimal choice for sourcing consolidation and production continuity.",
+    "evidence_trail": [
+      "Both ingredients share the same internal part number (RM-C5-cinnamon-28c1b925) and botanical identity.",
+      "Both materials are pharmaceutical grade, ensuring compliance with 21 CFR 111 purity standards [Source 1].",
+      "Ingredient B (Sabinsa) holds 'Non-GMO Project Verified' status, which exceeds the 'Non-GMO' claim of Ingredient A [Source 2].",
+      "Both suppliers are FDA-registered and GMP-certified, mitigating adulteration risks [Source 1].",
+      "All critical certifications (USDA Organic, Kosher, Halal, GMP) are present in the Sabinsa specification.",
+      "Ingredient A is currently unavailable from the primary supplier, making the Sabinsa lead time the only viable path for production continuity."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance"
+      },
+      {
+        "id": "fda-supplement-labeling",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Labeling Requirements"
+      },
+      {
+        "id": "fda-gmp-guidance",
+        "source": "U.S. FDA",
+        "title": "FDA Guidance for Industry — Dietary Supplements: New Dietary Ingredient Notifications and Related Issues"
+      }
+    ],
+    "stored_at": "2026-04-19T12:20:19.059647"
+  },
+  {
+    "ingredient_a": "SKU-13, SKU-1, SKU-2, SKU-3, SKU-7",
+    "ingredient_b": "SKU-13, SKU-1, SKU-2, SKU-3, SKU-7",
+    "supplier_a": "Current Supplier",
+    "supplier_b": "Prinova",
+    "grade_a": "pharmaceutical",
+    "grade_b": "pharmaceutical",
+    "certifications_a": [
+      "Halal",
+      "GMP",
+      "USP"
+    ],
+    "certifications_b": [
+      "Halal",
+      "GMP",
+      "USP"
+    ],
+    "verdict": "APPROVE_WITH_CONDITIONS",
+    "confidence": 0.85,
+    "reasoning": "The ingredients are functionally equivalent and meet pharmaceutical standards; however, the absence of specific certification data in the transaction documents creates a documentation gap. Given the 'unknown' vulnerability index, a risk-averse phased transition is necessary. A 70/30 split-source model allows for real-world validation of Prinova's quality without risking total supply chain disrupti",
+    "evidence_trail": [
+      "SKU designations (SKU-13, 1, 2, 3, 7) are identical across both sources",
+      "Both suppliers claim pharmaceutical grade and USP status",
+      "Both entities are FDA registered and GMP certified",
+      "Certifications for Non-GMO and Halal are present for both suppliers",
+      "Lead times are identical at 14 days",
+      "Sales Order SO-C-123 lacks explicit compliance documentation for both parties"
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-ds-guidance",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Questions and Answers"
+      },
+      {
+        "id": "fda-third-party-testing",
+        "source": "U.S. FDA",
+        "title": "FDA — Third-Party Testing and Certification of Dietary Supplements"
+      },
+      {
+        "id": "fda-supplement-labeling",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Labeling Requirements"
+      }
+    ],
+    "stored_at": "2026-04-19T12:25:16.135762"
   }
 ]

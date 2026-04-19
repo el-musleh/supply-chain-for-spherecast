@@ -85,7 +85,7 @@ class SyntheticDataGenerator:
     def __init__(
         self,
         gemini_client: Optional[genai.Client] = None,
-        teacher_model: str = "gemini-1.5-pro",
+        teacher_model: str = "gemini-flash-latest",
         temperature: float = 0.7,  # Higher for variety
         verbose: bool = False,
     ):
@@ -361,7 +361,7 @@ class TeacherStudentPipeline:
     def __init__(
         self,
         teacher_client: genai.Client,
-        teacher_model: str = "gemini-1.5-pro",
+        teacher_model: str = "gemini-flash-latest",
     ):
         self.teacher = SyntheticDataGenerator(
             gemini_client=teacher_client,
