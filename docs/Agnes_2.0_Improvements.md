@@ -819,6 +819,13 @@ Three quality metrics computed per evaluation without the RAGAS library:
 - Session logging with structured JSON logs for debugging
 - General Assessment tab for portfolio-wide health checks with live DB analytics
 - Decision History tab showing stored verdicts with refresh capability
+- **Database Explorer tab**: Live read-only SQL views of the supply chain database
+  - Company Catalog: Dual dropdown (Company + Product Type) with dynamic table columns
+    - **Finished-good view**: Shows SKU + Raw_Materials (comma-separated list of components)
+    - **Raw-material view**: Shows Raw_Material_SKU + In_Stock + Used_In_Products
+      - `In_Stock` = count of finished products using this material + 1 (for the material itself)
+      - `Used_In_Products` = list of finished product SKUs + "Direct sold" flag
+  - Supplier Catalog: Read-only view of supplier-product relationships
 
 **Technical Implementation**:
 ```python
