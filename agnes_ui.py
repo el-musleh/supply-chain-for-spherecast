@@ -524,6 +524,31 @@ Can Ingredient B substitute for Ingredient A? Provide structured JSON evaluation
 # Recommendation Card Formatter
 # ─────────────────────────────────────────────────────────────────────────────
 
+ABBREVIATIONS = [
+    ("PO",           "Purchase Order",              "An external order placed with a supplier to procure raw materials or finished goods."),
+    ("TO",           "Transfer Order",              "An internal order that moves stock between warehouses or branches within the same company."),
+    ("BOM",          "Bill of Materials",           "A structured list of components, ingredients, or sub-assemblies required to produce a finished product."),
+    ("SKU",          "Stock Keeping Unit",          "A unique identifier for each distinct product or raw material tracked in inventory."),
+    ("KPI",          "Key Performance Indicator",   "A measurable value used to evaluate supply chain health and performance."),
+    ("MOQ",          "Minimum Order Quantity",      "The smallest quantity a supplier is willing to sell in a single purchase order."),
+    ("EOQ",          "Economic Order Quantity",     "The optimal order quantity that minimises total inventory holding and ordering costs."),
+    ("COGS",         "Cost of Goods Sold",          "The direct costs attributable to the production of the goods sold by the company."),
+    ("SLA",          "Service Level Agreement",     "A contract defining expected delivery times, quality standards, and penalties between supplier and buyer."),
+    ("FIFO",         "First In, First Out",         "An inventory valuation method where the oldest stock is consumed or sold first."),
+    ("LIFO",         "Last In, First Out",          "An inventory valuation method where the most recently acquired stock is consumed first."),
+    ("ROP",          "Reorder Point",               "The inventory level at which a new replenishment order should be triggered."),
+    ("SS",           "Safety Stock",                "Buffer inventory held to guard against demand spikes or supply delays."),
+    ("WMS",          "Warehouse Management System", "Software that manages and optimises warehouse operations including receiving, storage, and dispatch."),
+    ("ERP",          "Enterprise Resource Planning","Integrated software managing core business processes: finance, HR, procurement, and supply chain."),
+    ("3PL",          "Third-Party Logistics",       "Outsourced logistics services including warehousing, transportation, and fulfilment."),
+    ("ASN",          "Advance Shipment Notice",     "A notification sent by a supplier before a shipment arrives, detailing contents and expected delivery."),
+    ("GRN",          "Goods Received Note",         "A document confirming that goods ordered have been received and inspected."),
+    ("SPLIT_TO_PO",  "Split Transfer+Purchase",     "A hybrid decision: partially fulfil via internal Transfer Order, remainder via external Purchase Order."),
+    ("SPLIT_PO",     "Split Purchase Order",        "A decision to split a purchase across multiple suppliers to reduce risk or cost."),
+    ("TRANSFER_ORDER","Transfer Order (verdict)",   "System verdict recommending fulfilment via internal stock transfer only."),
+    ("FULL_REPLACE", "Full Replacement PO",         "System verdict recommending complete replacement of a component via a new Purchase Order."),
+]
+
 _VERDICT_EMOJI = {
     "APPROVE":                  "✅",
     "APPROVE_WITH_CONDITIONS":  "⚠️",
@@ -714,14 +739,14 @@ def _load_session_logs(filter_level: str = "All", tail: int = 100) -> str:
 def download_session_log():
     """Download the current session log file."""
     if not session_logger:
-        return None
-    
-    log_path = session_logger.session_file_path
-    if not log_path.exists():
-        return None
-    
-    return str(log_path)
+        return None, gr.update(visible=False)
 
+    log_path = session_logger.session_file_path
+    if not log_path or not log_path.exists():
+        return None, gr.update(visible=False)
+
+    # Return path and keep visible=False (triggers browser download without showing the box)
+    return str(log_path), gr.update(visible=False)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # URL Detection & Scraper Integration
@@ -1566,6 +1591,24 @@ def _build_charts(stats: dict):
     return fig1, fig2
 
 
+def _build_abbreviations_html() -> str:
+    rows = "".join(
+        f"<tr>"
+        f"<td style='padding:6px 14px 6px 0;font-weight:700;color:#38bdf8;white-space:nowrap'>{abbr}</td>"
+        f"<td style='padding:6px 14px 6px 0;color:#e2e8f0;white-space:nowrap'>{full}</td>"
+        f"<td style='padding:6px 0;color:#94a3b8;font-size:0.85rem'>{desc}</td>"
+        f"</tr>"
+        for abbr, full, desc in ABBREVIATIONS
+    )
+    return (
+        "<div style='margin-top:2rem;border-top:1px solid #334155;padding-top:1.5rem'>"
+        "<p style='font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;"
+        "color:#64748b;margin-bottom:.75rem'>Abbreviations Reference</p>"
+        f"<table style='width:100%;border-collapse:collapse'>{rows}</table>"
+        "</div>"
+    )
+
+
 def _build_kpi_html(stats: dict) -> str:
     cards = [
         ("🏢", stats["n_companies"],    "CPG Companies"),
@@ -1972,6 +2015,8 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
 
             health_md = gr.Markdown("")
 
+            gr.HTML(_build_abbreviations_html())
+
         # ══════════════════════════════════════════════════════════════════
         # TAB 3 — Decision History
         # ══════════════════════════════════════════════════════════════════
@@ -2014,6 +2059,8 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
             with gr.Row():
                 refresh_logs_btn = gr.Button("🔄 Refresh Logs", variant="secondary", size="sm")
                 download_logs_btn = gr.Button("⬇️ Download Session Log", variant="secondary", size="sm")
+            
+            log_file = gr.File(label=None, visible=False, show_label=False)
             
             system_status = gr.HTML(
                 '<div style="color:#94a3b8;font-size:0.85rem;padding:8px 0">'
@@ -2175,7 +2222,7 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
     download_logs_btn.click(
         fn=download_session_log,
         inputs=[],
-        outputs=[gr.File(), gr.Textbox(visible=False)],
+        outputs=[log_file, gr.Textbox(visible=False)],
     )
 
     # Database Explorer handlers
