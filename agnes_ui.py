@@ -927,12 +927,12 @@ def _load_company_products(company_id: int, product_type: str, filter_text: str 
         df = pd.read_sql_query(query, conn, params=[company_id])
     else:  # raw-material
         # Get raw materials and their usage in finished products
-        # In_Stock = count of raw materials with the same ingredient name for this company
+        # In_Stock = count of raw materials with same ingredient name + count of finished products using it
         # Used_In_Products = list of finished products + "Direct sold"
         query = """
             SELECT
                 p.SKU AS Raw_Material_SKU,
-                0 AS In_Stock, -- Will be calculated in pandas
+                COUNT(DISTINCT fg.Id) AS Finished_Products_Count,
                 COALESCE(GROUP_CONCAT(DISTINCT fg.SKU), '') ||
                     CASE WHEN COUNT(DISTINCT fg.Id) > 0 THEN ', Direct sold' ELSE 'Direct sold' END
                     AS Used_In_Products
@@ -949,9 +949,12 @@ def _load_company_products(company_id: int, product_type: str, filter_text: str 
         """
         df = pd.read_sql_query(query, conn, params=[company_id])
 
-        # Calculate In_Stock based on matching ingredient names
+        # Calculate In_Stock: matching ingredient count + finished products count
         base_names = df['Raw_Material_SKU'].apply(_parse_ingredient_from_sku)
-        df['In_Stock'] = base_names.map(base_names.value_counts())
+        name_counts = base_names.value_counts().to_dict()
+        df['Ingredient_Count'] = base_names.map(name_counts)
+        df['In_Stock'] = df['Ingredient_Count'] + df['Finished_Products_Count']
+        df = df.drop(columns=['Ingredient_Count', 'Finished_Products_Count'])
 
     conn.close()    
     if filter_text and filter_text.strip():
@@ -1809,9 +1812,9 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
         '<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;'
         'font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;'
         'letter-spacing:0.05em">MULTIMODAL</span>'
-        '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;'
+        '<span style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;'
         'font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;'
-        'letter-spacing:0.05em">ENTERPRISE</span>'
+        'letter-spacing:0.05em">BETA</span>'
         '</div>'
         '</div>'
     )
