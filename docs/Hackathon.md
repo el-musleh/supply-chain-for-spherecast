@@ -162,10 +162,9 @@ The focus lies on making incomplete and messy data actionable:
 - [ ] An optimization or recommendation layer that produces a **consolidated sourcing proposal** per component category or product group
 
 **Data Provided**
-
-- Normalized **BOM data**
-- Supplier data, including existing supplier-to-component mappings
-- An **SQL database dump** and explaining ERD
+- [x] Normalized **BOM data**
+- [x] Supplier data, including existing supplier-to-component mappings
+- [x] An **SQL database dump** and explaining ERD
 
 **Technology Setup**
 
@@ -175,16 +174,15 @@ The focus lies on making incomplete and messy data actionable:
 - Participants are expected to decide for themselves how to **retrieve, verify, structure, and operationalize and reconstruct missing evidence**
 
 **Deliverables**
-
-- A **working prototype** or technical decision-support system
-- A presentation including:
-  - Problem framing and business relevance
-  - Data acquisition and enrichment strategy
-  - Approach to substitution detection and compliance inference
-    - Optimization / recommendation logic
-    - Architectural decisions and model choices
-    - Demonstration of the system
-    - A clear explanation of how the system handles **uncertainty, evidence quality, and tradeoffs**
+- [ ] A **working prototype** or technical decision-support system
+- [ ] A presentation including:
+	  - Problem framing and business relevance
+	  - Data acquisition and enrichment strategy
+	  - Approach to substitution detection and compliance inference
+	    - Optimization / recommendation logic
+	    - Architectural decisions and model choices
+	    - Demonstration of the system
+	    - A clear explanation of how the system handles **uncertainty, evidence quality, and tradeoffs**
 
 **Judging Emphasis**
 

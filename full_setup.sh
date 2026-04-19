@@ -138,6 +138,29 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Step 5: Generate Dashboard Signals
+# ─────────────────────────────────────────────────────────────────────────────
+echo -e "\n${BOLD}Step 5: Generating Dashboard Signals${RESET}\n"
+
+DASHBOARD_FILE="$SCRIPT_DIR/KB/dashboard_signals.json"
+
+if [[ -f "$DASHBOARD_FILE" ]]; then
+    ING_COUNT=$(python3 -c "import json; d=json.load(open('$DASHBOARD_FILE')); print(len(d))" 2>/dev/null || echo "?")
+    ok "KB/dashboard_signals.json already exists ($ING_COUNT ingredients)"
+    echo -e "       Re-generate manually: python generate_dashboard.py"
+else
+    info "KB/dashboard_signals.json not found — generating..."
+    if python3 "$SCRIPT_DIR/generate_dashboard.py"; then
+        ING_COUNT=$(python3 -c "import json; d=json.load(open('$DASHBOARD_FILE')); print(len(d))" 2>/dev/null || echo "?")
+        ok "Dashboard signals generated successfully ($ING_COUNT ingredients)"
+    else
+        err "generate_dashboard.py failed"
+        echo -e "       Check your DB connection and retry"
+        exit 1
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Setup Summary
 # ─────────────────────────────────────────────────────────────────────────────
 echo ""
@@ -149,6 +172,7 @@ echo -e "  ${GREEN}✓${RESET}  .env configured"
 echo -e "  ${GREEN}✓${RESET}  Knowledge base built (KB/regulatory_docs.json)"
 echo -e "  ${GREEN}✓${RESET}  ML models downloaded (models/)"
 echo -e "  ${GREEN}✓${RESET}  RAG cells injected (agnes.ipynb)"
+echo -e "  ${GREEN}✓${RESET}  Dashboard signals generated (KB/dashboard_signals.json)"
 echo ""
 sep
 echo ""

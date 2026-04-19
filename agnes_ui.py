@@ -29,9 +29,13 @@ import json
 import mimetypes
 import os
 import re
+import smtplib
 import sqlite3
 import tempfile
 import atexit
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 
 import requests
@@ -71,6 +75,14 @@ load_dotenv()
 _API_KEY = os.getenv("GEMINI_API_KEY", "")
 client = genai.Client(api_key=_API_KEY)
 
+# ── Email notification config (set in .env) ───────────────────────────────────
+_SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+_SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+_SMTP_USER = os.getenv("SMTP_USER", "")          # sender Gmail address
+_SMTP_PASS = os.getenv("SMTP_PASS", "")          # Gmail App Password
+_NOTIFY_EMAILS_RAW = os.getenv("NOTIFICATION_EMAILS", "")
+_NOTIFY_EMAILS: list[str] = [e.strip() for e in _NOTIFY_EMAILS_RAW.split(",") if e.strip()]
+
 print("Loading RAG index …")
 KB_PATH = Path("KB/regulatory_docs.json")
 
@@ -88,6 +100,39 @@ else:
         rag_index = None
         print(f"  ⚠ RAG index load failed: {_e}")
         print(f"  Evaluation will proceed without RAG context")
+
+_DASHBOARD_PATH = Path("KB/dashboard_signals.json")
+
+def _load_dashboard(path: Path) -> dict:
+    """Load notebook df_dashboard signals keyed by ingredient_name."""
+    if not path.exists():
+        return {}
+    try:
+        records = json.loads(path.read_text())
+        return {r["ingredient_name"]: r for r in records if "ingredient_name" in r}
+    except Exception as _e:
+        print(f"  ⚠ Dashboard signals load failed: {_e}")
+        return {}
+
+def _get_ingredient_signals(ingredient_name: str) -> dict:
+    """Fuzzy-match ingredient name against dashboard and return its signals (or {})."""
+    if not _DASHBOARD or not ingredient_name:
+        return {}
+    key = ingredient_name.lower().strip()
+    for name, signals in _DASHBOARD.items():
+        if name.lower() == key:
+            return signals
+    # Partial match fallback
+    for name, signals in _DASHBOARD.items():
+        if key in name.lower() or name.lower() in key:
+            return signals
+    return {}
+
+_DASHBOARD: dict = _load_dashboard(_DASHBOARD_PATH)
+if _DASHBOARD:
+    print(f"  Dashboard signals ready — {len(_DASHBOARD)} ingredients")
+else:
+    print(f"  ⚠ No dashboard signals found — run: python generate_dashboard.py")
 
 _MODEL = "gemini-flash-latest"
 _MAX_INLINE_BYTES = 15 * 1024 * 1024   # 15 MB inline limit (safe margin)
@@ -211,7 +256,7 @@ def _resolve_url(url: str) -> tuple[types.Part | None, str]:
         for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
             tag.decompose()
         text = soup.get_text(separator="\n", strip=True)[:6000]
-        part = types.Part.from_text(f"[Scraped from {url}]\n\n{text}")
+        part = types.Part.from_text(text=f"[Scraped from {url}]\n\n{text}")
         return part, f"[web] {url[:70]}"
 
     except Exception as exc:
@@ -241,7 +286,7 @@ def _build_parts(
         urls = _URL_PATTERN.findall(notes)
         clean_text = _URL_PATTERN.sub("", notes).strip()
         if clean_text:
-            parts.append(types.Part.from_text(clean_text))
+            parts.append(types.Part.from_text(text=clean_text))
             labels.append("[text] user notes")
         for url in urls:
             part, label = _resolve_url(url)
@@ -335,7 +380,7 @@ def _extract_compliance(parts: list, supplier: str, ingredient: str) -> dict:
         }
     try:
         text = _gemini_generate(
-            contents=parts + [types.Part.from_text(_EXTRACTION_PROMPT)],
+            contents=parts + [types.Part.from_text(text=_EXTRACTION_PROMPT)],
             config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1),
         )
         extracted = json.loads(text)
@@ -367,6 +412,47 @@ Return empty strings for text fields that cannot be determined; use false/14/[] 
 """
 
 
+_CHAT_EXTRACTION_PROMPT = """\
+Analyze the user's message and any attached documents (emails, alerts, certificates).
+Extract ALL of the following supply chain parameters in one pass and return ONLY valid JSON.
+If a parameter is not mentioned, use null for numbers or empty strings for text.
+
+{
+  "ingredient_a": "<current/baseline ingredient name>",
+  "supplier_a": "<current supplier name>",
+  "ingredient_b": "<proposed substitute ingredient name, if any>",
+  "supplier_b": "<proposed substitute supplier, if any>",
+  "needed_qty": <number, required quantity>,
+  "supplier_qty": <number, quantity the current supplier can provide>,
+  "unit": "<unit of measurement, e.g. kg, units>",
+  "po_cost": <number, total landed cost for external PO>,
+  "po_lead": <number, lead time in days for external PO>,
+  "branch_name": "<name of internal branch/warehouse for TO>",
+  "branch_stock": <number, current stock at branch>,
+  "branch_safety": <number, safety stock limit at branch>,
+  "to_freight": <number, internal freight cost for TO>,
+  "to_lead": <number, lead time in days for TO>,
+  "factory_buffer": <number, factory buffer days>,
+  "situation_summary": "<A 2-3 sentence natural language summary explaining the user's current supply chain situation, identifying the shortage, the documents provided, and the key constraints>"
+}
+
+Return ONLY valid JSON.
+"""
+
+def _extract_all_parameters(parts: list) -> dict:
+    try:
+        text = _gemini_generate(
+            contents=parts + [types.Part.from_text(text=_CHAT_EXTRACTION_PROMPT)],
+            config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1),
+        )
+        import json
+        return json.loads(text)
+    except Exception as exc:
+        print(f"Extraction error: {exc}")
+        return {}
+
+
+
 def _extract_identity_and_compliance(parts: list) -> tuple[dict, dict]:
     """
     Single LLM call that extracts both the ingredient identity AND compliance data from documents.
@@ -374,7 +460,7 @@ def _extract_identity_and_compliance(parts: list) -> tuple[dict, dict]:
     """
     try:
         text = _gemini_generate(
-            contents=parts + [types.Part.from_text(_IDENTITY_AND_COMPLIANCE_PROMPT)],
+            contents=parts + [types.Part.from_text(text=_IDENTITY_AND_COMPLIANCE_PROMPT)],
             config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1),
         )
         data = json.loads(text)
@@ -410,6 +496,99 @@ def _extract_identity(parts: list) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Chain-of-Thought reasoning steps (plain-text, feed into final verdict call)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _cot_compliance_step(
+    ing_a: str, sup_a: str, comp_a: dict,
+    ing_b: str, sup_b: str, comp_b: dict,
+    signals_a: dict, signals_b: dict,
+    context_block: str,
+) -> str:
+    risk_tier  = signals_b.get("risk_tier") or signals_a.get("risk_tier") or "unknown"
+    trust_score = signals_b.get("trust_score") or signals_a.get("trust_score") or "N/A"
+    vuln_index  = signals_b.get("vulnerability_index") or signals_a.get("vulnerability_index") or "N/A"
+
+    prompt = f"""{context_block}
+
+## Chain-of-Thought: Compliance & Identity Reasoning
+
+You are Agnes, an AI supply chain expert. Reason step by step through the compliance and functional identity of the following ingredient pair. Do NOT produce a final verdict yet — think aloud through each relevant dimension.
+
+### Ingredient A (current source)
+- Name     : {ing_a}
+- Supplier : {sup_a}
+- Grade    : {comp_a.get('grade', '—')}
+- FDA reg  : {comp_a.get('fda_registered', '—')}
+- Non-GMO  : {comp_a.get('non_gmo', '—')}
+- Certs    : {', '.join(comp_a.get('certifications', [])) or 'None'}
+- Notes    : {comp_a.get('notes', '—')}
+
+### Ingredient B (proposed substitute)
+- Name      : {ing_b}
+- Supplier  : {sup_b}
+- Grade     : {comp_b.get('grade', '—')}
+- FDA reg   : {comp_b.get('fda_registered', '—')}
+- Non-GMO   : {comp_b.get('non_gmo', '—')}
+- Certs     : {', '.join(comp_b.get('certifications', [])) or 'None'}
+- Notes     : {comp_b.get('notes', '—')}
+
+### Supply Risk Context (from batch analysis)
+- Risk tier        : {risk_tier}
+- Supplier trust   : {trust_score}
+- Vulnerability idx: {vuln_index}
+
+Reason through: chemical/functional identity match, grade equivalence, certification gaps, regulatory risks (FDA/USP/GMP), and whether the trust score and risk tier raise any concerns. Write your reasoning as numbered steps."""
+
+    try:
+        return _gemini_generate(
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.3),
+        )
+    except Exception as exc:
+        return f"[Compliance reasoning unavailable: {exc}]"
+
+
+def _cot_supply_step(
+    compliance_reasoning: str,
+    supply_scenario_block: str | None,
+    signals_a: dict, signals_b: dict,
+) -> str:
+    vuln_index  = signals_b.get("vulnerability_index") or signals_a.get("vulnerability_index") or "N/A"
+    gpo         = signals_b.get("gpo_eligible") or signals_a.get("gpo_eligible") or "—"
+    est_savings = signals_b.get("est_savings") or signals_a.get("est_savings") or "N/A"
+    agnes_score = signals_b.get("agnes_score") or signals_a.get("agnes_score") or "N/A"
+
+    scenario_section = supply_scenario_block or "No PO/TO cost data provided — focus on qualitative supply risk."
+
+    prompt = f"""## Chain-of-Thought: Supply Economics & Sourcing Action
+
+You are Agnes, an AI supply chain expert. Building on the compliance reasoning below, now reason step by step through the supply chain economics and the best sourcing action to take.
+
+### Compliance Reasoning (Step 1 output)
+{compliance_reasoning}
+
+### Supply Scenario Data
+{scenario_section}
+
+### Batch Analysis Signals
+- Vulnerability index   : {vuln_index}
+- GPO consortium eligible: {gpo}
+- Estimated savings     : {est_savings}
+- Agnes consolidation score: {agnes_score}
+
+Reason through: PO vs TO cost trade-off, lead-time feasibility, whether a split is needed, GPO opportunity if applicable, and how the vulnerability index should influence urgency. Write your reasoning as numbered steps. Do NOT produce a final JSON verdict yet."""
+
+    try:
+        return _gemini_generate(
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.3),
+        )
+    except Exception as exc:
+        return f"[Supply reasoning unavailable: {exc}]"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # RAG Evaluation (does NOT auto-store — confirmation required)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -419,11 +598,16 @@ def _evaluate(
     temperature: float = 0.2,
     exclude_verdict: str | None = None,
     supply_scenario_block: str | None = None,
-) -> tuple[dict, list]:
+    signals_a: dict | None = None,
+    signals_b: dict | None = None,
+) -> tuple[dict, list, str, str]:
     """
-    RAG-augmented evaluation without persisting. Returns (result_dict, retrieved_docs).
-    exclude_verdict is used when requesting alternatives to avoid the same answer.
+    RAG-augmented evaluation without persisting.
+    Returns (result_dict, retrieved_docs, compliance_reasoning, supply_reasoning).
+    CoT reasoning strings are included in result_dict under 'cot_compliance' and 'cot_supply'.
     """
+    signals_a = signals_a or {}
+    signals_b = signals_b or {}
     certs_a = ", ".join(comp_a.get("certifications", []))
     certs_b = ", ".join(comp_b.get("certifications", []))
     query = (
@@ -457,10 +641,30 @@ def _evaluate(
     if exclude_verdict:
         sys_prompt += f"\n\nIMPORTANT: Do NOT return '{exclude_verdict}' as the recommendation — provide the next-best alternative assessment."
 
+    # ── Step 1: Compliance & identity CoT ────────────────────────────────────
+    compliance_reasoning = _cot_compliance_step(
+        ing_a, sup_a, comp_a, ing_b, sup_b, comp_b,
+        signals_a, signals_b, context_block,
+    )
+
+    # ── Step 2: Supply economics CoT ─────────────────────────────────────────
+    supply_reasoning = _cot_supply_step(
+        compliance_reasoning, supply_scenario_block, signals_a, signals_b,
+    )
+
+    # ── Step 3: Final verdict (JSON) grounded in CoT output ──────────────────
     cert_a = ", ".join(comp_a.get("certifications", [])) or "None"
     cert_b = ", ".join(comp_b.get("certifications", [])) or "None"
 
     user_msg = f"""## Substitutability Evaluation Request
+
+### Step-by-Step Reasoning (already completed)
+
+**Compliance & Identity Analysis:**
+{compliance_reasoning}
+
+**Supply Economics & Sourcing Action Analysis:**
+{supply_reasoning}
 
 ### Ingredient A — Current (consolidate FROM)
 - Ingredient  : {ing_a}
@@ -482,7 +686,7 @@ def _evaluate(
 - Lead time   : {comp_b.get('lead_time_days')} days
 - Notes       : {comp_b.get('notes','')}
 
-Can Ingredient B substitute for Ingredient A? Provide structured JSON evaluation."""
+Given your step-by-step reasoning above, produce the final JSON evaluation verdict."""
 
     if supply_scenario_block:
         user_msg += supply_scenario_block
@@ -517,7 +721,9 @@ Can Ingredient B substitute for Ingredient A? Provide structured JSON evaluation
         {"id": d["id"], "source": d["source"], "title": d["title"]}
         for d in retrieved_docs
     ]
-    return result, retrieved_docs
+    result["cot_compliance"] = compliance_reasoning
+    result["cot_supply"] = supply_reasoning
+    return result, retrieved_docs, compliance_reasoning, supply_reasoning
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1175,242 +1381,515 @@ def _safe_float(val, default=None):
     except (ValueError, TypeError):
         return default
 
+def add_message(history, message):
+    for x in message["files"]:
+        history.append({"role": "user", "content": {"path": x}})
+    if message["text"]:
+        history.append({"role": "user", "content": message["text"]})
+    return history, gr.MultimodalTextbox(value=None, interactive=False)
 
-def submit_handler(
-    ing_a, sup_a, ing_b, sup_b,
-    needed_qty_str, supplier_qty_str, unit_str,
-    po_cost_str, po_lead_str,
-    branch_name, branch_stock_str, branch_safety_str, to_freight_str, to_lead_str,
-    factory_buffer_str,
-    notes, coa_image, audio_file, video_file, pdf_file,
-    state, progress=gr.Progress(),
-):
-    # Log evaluation start
-    session_logger.info("Evaluation started", extra={
-        "ingredient_a": ing_a,
-        "supplier_a": sup_a,
-        "has_notes": bool(notes and notes.strip()),
-        "has_coa_image": coa_image is not None,
-        "has_audio": audio_file is not None,
-        "has_video": video_file is not None,
-        "has_pdf": pdf_file is not None,
+
+def chat_evaluate_handler(history, state, progress=gr.Progress()):
+    # Reconstruct parts from history since the last assistant message
+    # (Or just use the most recent user messages)
+    user_messages = []
+    files = []
+    
+    # Collect all messages since the last assistant message
+    for msg in reversed(history):
+        # Gradio 6 uses Message objects; Gradio 5 and below might use dicts
+        role = getattr(msg, "role", None) or (msg.get("role") if isinstance(msg, dict) else None)
+        
+        if role == "assistant":
+            break
+            
+        content = getattr(msg, "content", None) or (msg.get("content") if isinstance(msg, dict) else None)
+        
+        # Handle Gradio 6 list-of-content-objects format
+        if isinstance(content, list):
+            for part in content:
+                # TextMessage
+                if hasattr(part, "text"):
+                    user_messages.insert(0, part.text)
+                # FileMessage (contains a FileData object)
+                elif hasattr(part, "file") and hasattr(part.file, "path"):
+                    files.append(part.file.path)
+                # Fallback for dict-based content parts
+                elif isinstance(part, dict):
+                    if part.get("type") == "text":
+                        user_messages.insert(0, part.get("text", ""))
+                    elif part.get("type") == "file":
+                        files.append(part.get("file", {}).get("path", ""))
+        
+        # Handle Gradio 5 and below flat formats
+        elif isinstance(content, str):
+            user_messages.insert(0, content)
+        elif isinstance(content, dict) and "path" in content:
+            files.append(content["path"])
+        elif isinstance(content, tuple):
+            files.append(content[0])
+        elif hasattr(content, "path"):
+            files.append(content.path)
+
+    text = "\n".join(user_messages)
+    
+    session_logger.info("Evaluation started (Chat)", extra={
+        "text_length": len(text),
+        "files_count": len(files),
     })
 
-    # Progress: Document ingestion — happens BEFORE validation so docs can fill missing fields
     progress(0.05, desc="Processing uploaded documents...")
-    with log_operation(session_logger, "build_parts", "ui"):
-        parts, labels = _build_parts(notes, coa_image, audio_file, video_file, pdf_file)
-    session_logger.info("Parts assembled", extra={"part_count": len(parts), "labels": labels})
-
-    auto_extracted = False
-    comp_b_from_docs = None  # will hold compliance if already extracted during identity pass
-
-    if not ing_a or not ing_a.strip():
-        if not parts:
-            session_logger.warning("Evaluation rejected - no ingredient name and no documents")
-            return (
-                "**Please enter an Ingredient A name or upload a supporting document "
-                "(image, PDF, audio, video, or paste notes/URLs).**  \n"
-                "*Agnes can extract the ingredient automatically from a Certificate of Analysis or supplier email.*",
-                "<div style='color:#64748b;font-size:0.9rem;padding:8px 0'>Awaiting evaluation…</div>",
-                gr.update(interactive=False), gr.update(interactive=False),
-                gr.update(interactive=False), state,
-            )
-        # Combined call: extract identity AND compliance in one shot (saves an API call)
-        progress(0.15, desc="Reading document — extracting ingredient & compliance data…")
-        identity, comp_b_from_docs = _extract_identity_and_compliance(parts)
-        ing_a = identity.get("ingredient", "").strip() or "Unknown Ingredient"
-        if not (sup_a and sup_a.strip()):
-            sup_a = identity.get("supplier", "").strip() or "Unknown Supplier"
-        auto_extracted = True
-        session_logger.info("Identity + compliance auto-extracted from documents", extra={
-            "ingredient_a": ing_a, "supplier_a": sup_a,
-        })
-
-    progress(0.25, desc="Finding alternative supplier…")
-
-    # Auto-discover alternative if user left Ingredient B blank
-    if not (ing_b and ing_b.strip()):
-        ing_b, sup_b = _find_alternative(ing_a, sup_a or "Current Supplier")
-        session_logger.info("Alternative auto-discovered", extra={"ingredient_b": ing_b, "supplier_b": sup_b})
-    else:
-        session_logger.info("Using user-provided Ingredient B", extra={"ingredient_b": ing_b, "supplier_b": sup_b})
-
-    # Compliance for Ingredient B — reuse the combined extraction if already done
-    progress(0.45, desc="Extracting compliance data…")
-    if comp_b_from_docs is not None:
-        comp_b = comp_b_from_docs  # already extracted above — skip the extra API call
-    else:
-        comp_b = _extract_compliance(parts, sup_b, ing_b)
-    comp_b.setdefault("organic_certified", False)
     
-    # Progress: RAG retrieval (60-80%)
+    # Process files into parts
+    with log_operation(session_logger, "build_parts", "ui"):
+        # We need to route the files properly. _build_parts expects specific arguments
+        # Instead, let's create a custom part builder
+        parts = []
+        labels = []
+        
+        # Add text part
+        if text.strip():
+            parts.append(types.Part.from_text(text=text))
+            labels.append("[text] user message")
+            
+        for f in files:
+            try:
+                import mimetypes
+                from pathlib import Path
+                data = Path(f).read_bytes()
+                mime = mimetypes.guess_type(f)[0] or "application/octet-stream"
+                parts.append(types.Part.from_bytes(data=data, mime_type=mime))
+                labels.append(f"[file] {Path(f).name}")
+            except Exception as e:
+                labels.append(f"[file-fail] {e}")
+
+    if not parts:
+        history.append({"role": "assistant", "content": "Please provide a scenario or upload documents to evaluate."})
+        yield history, state, gr.update(interactive=False), gr.update(interactive=False), gr.update(interactive=False)
+        return
+
+    progress(0.15, desc="Extracting parameters...")
+    
+    # Use _extract_all_parameters instead of combined extract
+    params = _extract_all_parameters(parts)
+    
+    situation_summary = params.get("situation_summary", "")
+    if situation_summary:
+        history.append({"role": "assistant", "content": f"**Situation Understood:**\n_{situation_summary}_\n\n*Evaluating deep compliance & RAG insights...* ⏳"})
+        yield history, state, gr.update(), gr.update(), gr.update()
+        base_summary = f"**Situation Understood:**\n_{situation_summary}_\n\n"
+    else:
+        base_summary = ""
+
+    ing_a = params.get("ingredient_a")
+    sup_a = params.get("supplier_a")
+    
+    if not ing_a:
+        # If we had a temporary message, replace it
+        if history and history[-1]["role"] == "assistant" and "Evaluating deep compliance" in history[-1]["content"]:
+            history.pop()
+        history.append({"role": "assistant", "content": base_summary + "❌ Could not identify a baseline ingredient. Please specify the ingredient name."})
+        yield history, state, gr.update(interactive=False), gr.update(interactive=False), gr.update(interactive=False)
+        return
+        
+    ing_b = params.get("ingredient_b")
+    sup_b = params.get("supplier_b")
+    
+    progress(0.25, desc="Finding alternative supplier…")
+    if not ing_b:
+        ing_b, sup_b = _find_alternative(ing_a, sup_a or "Current Supplier")
+        
+    progress(0.45, desc="Extracting compliance data…")
+    # We still need comp_a and comp_b. Let's use _extract_compliance on the parts
+    comp_a = _extract_compliance(parts, sup_a or "Current Supplier", ing_a)
+    comp_b = _extract_compliance(parts, sup_b, ing_b)
+    
     progress(0.60, desc="Querying RAG index...")
-
-    # Ingredient A: use a reasonable pharmaceutical baseline
-    comp_a = {
-        "organic_certified": False, "fda_registered": True, "non_gmo": True,
-        "grade": "pharmaceutical", "lead_time_days": 14,
-        "certifications": ["USP", "GMP", "Halal", "Kosher"],
-        "notes": "Baseline — standard pharmaceutical-grade reference.",
-    }
-
-    # Progress: LLM evaluation (80-100%)
+    
     progress(0.80, desc="Running LLM evaluation...")
+    
+    def _safe_float(val):
+        try:
+            return float(val) if val is not None and str(val).strip() else None
+        except (ValueError, TypeError):
+            return None
 
-    # Build supply scenario block if quantities provided
+    needed_qty = _safe_float(params.get("needed_qty"))
+    supplier_qty = _safe_float(params.get("supplier_qty"))
+    unit = params.get("unit") or "units"
+    po_cost = _safe_float(params.get("po_cost"))
+    po_lead = _safe_float(params.get("po_lead"))
+    branch_stock = _safe_float(params.get("branch_stock"))
+    to_freight = _safe_float(params.get("to_freight"))
+    to_lead = _safe_float(params.get("to_lead"))
+    
     supply_scenario_block = None
-    needed_qty    = _safe_float(needed_qty_str)
-    supplier_qty  = _safe_float(supplier_qty_str)
-    po_cost       = _safe_float(po_cost_str)
-    po_lead       = _safe_float(po_lead_str)
-    branch_stock  = _safe_float(branch_stock_str)
-    branch_safety = _safe_float(branch_safety_str, 0)
-    to_freight    = _safe_float(to_freight_str)
-    to_lead       = _safe_float(to_lead_str)
-    factory_buf   = _safe_float(factory_buffer_str, 0)
-    unit          = unit_str.strip() if unit_str and unit_str.strip() else "units"
-
-    has_qty_data   = needed_qty is not None and supplier_qty is not None
-    has_po_data    = po_cost is not None and po_lead is not None
-    has_to_data    = branch_stock is not None and to_freight is not None and to_lead is not None
-
-    if has_qty_data:
-        shortfall = needed_qty - (supplier_qty or 0)
+    if needed_qty is not None and supplier_qty is not None:
+        shortfall = needed_qty - supplier_qty
         supply_scenario_block = (
-            f"\n## Supply Scenario — Partial Supply\n"
-            f"- Required quantity    : {needed_qty} {unit}\n"
+            f"\\n## Supply Scenario — Partial Supply\\n"
+            f"- Required quantity    : {needed_qty} {unit}\\n"
             f"- Supplier can provide : {supplier_qty} {unit}"
-            + (f"  ← PARTIAL — shortfall of {shortfall:.1f} {unit} ({shortfall/needed_qty:.0%})\n" if shortfall > 0 else "\n")
+            + (f"  ← PARTIAL — shortfall of {shortfall:.1f} {unit} ({shortfall/needed_qty:.0%})\\n" if shortfall > 0 else "\\n")
         )
         if shortfall > 0:
             supply_scenario_block += (
-                "\nEvaluate BOTH options and populate decision_options[]:\n"
-                f"Option A (SPLIT_PO): accept {supplier_qty} {unit} from current supplier + source {shortfall:.1f} {unit} from an alternative external supplier\n"
-                f"Option B (FULL_REPLACE): replace entirely with a supplier who can deliver the full {needed_qty} {unit}\n"
+                "\\nEvaluate BOTH options and populate decision_options[]:\\n"
+                f"Option A (SPLIT_PO): accept {supplier_qty} {unit} from current supplier + source {shortfall:.1f} {unit} from an alternative external supplier\\n"
+                f"Option B (FULL_REPLACE): replace entirely with a supplier who can deliver the full {needed_qty} {unit}\\n"
             )
 
-    if has_po_data and has_to_data and needed_qty is not None:
+    if po_cost is not None and po_lead is not None and branch_stock is not None and to_freight is not None and to_lead is not None and needed_qty is not None:
         scenario = decide_po_vs_to(
             material_name=ing_a,
             needed_qty=needed_qty,
             po_data={"cost": po_cost, "lead_time_days": po_lead},
             to_data={
-                "branch_name": branch_name or "Internal Branch",
+                "branch_name": params.get("branch_name") or "Internal Branch",
                 "current_stock": branch_stock,
-                "safety_limit": branch_safety,
+                "safety_limit": params.get("branch_safety") or 0,
                 "freight_cost": to_freight,
                 "lead_time_days": to_lead,
             },
-            factory_buffer_days=factory_buf,
+            factory_buffer_days=params.get("factory_buffer") or 0,
             unit=unit,
         )
         supply_scenario_block = (supply_scenario_block or "") + scenario["scenario_block"]
-        session_logger.info("PO vs TO analysis", extra={
-            "hint": scenario["hint"],
-            "feasible_to": scenario["feasible_to"],
-            "available_to_transfer": scenario["available_to_transfer"],
-        })
+        
+    # ── Fetch notebook signals for both ingredients ───────────────────────────
+    signals_a = _get_ingredient_signals(ing_a)
+    signals_b = _get_ingredient_signals(ing_b)
 
-    # Evaluate (no auto-store)
+    # ── Stream CoT Step 1: Compliance reasoning ───────────────────────────────
+    progress(0.55, desc="Agnes: reasoning through compliance…")
+    if history and history[-1]["role"] == "assistant" and "Evaluating deep compliance" in history[-1]["content"]:
+        history[-1]["content"] = base_summary + "🧠 **Agnes is reasoning…**\n\n▸ **Step 1 — Compliance & Identity Check** _(in progress)_"
+    else:
+        history.append({"role": "assistant", "content": base_summary + "🧠 **Agnes is reasoning…**\n\n▸ **Step 1 — Compliance & Identity Check** _(in progress)_"})
+    yield history, state, gr.update(), gr.update(), gr.update()
+
+    # ── Stream CoT Step 2: Supply economics ──────────────────────────────────
+    progress(0.70, desc="Agnes: reasoning through supply economics…")
+
     with log_operation(session_logger, "rag_evaluate", "rag"):
-        result, docs = _evaluate(
+        result, docs, compliance_reasoning, supply_reasoning = _evaluate(
             ing_a, sup_a or "Current Supplier", comp_a,
             ing_b, sup_b or "Proposed Supplier", comp_b,
             supply_scenario_block=supply_scenario_block,
+            signals_a=signals_a,
+            signals_b=signals_b,
         )
+
+    # ── Build CoT trace block ─────────────────────────────────────────────────
+    signals_line_a = ""
+    if signals_a:
+        signals_line_a = (
+            f"\n> 📊 *Batch signals for {ing_a}* — "
+            f"Risk: **{signals_a.get('risk_tier','—')}** | "
+            f"Trust: **{signals_a.get('trust_score','—')}** | "
+            f"Vuln idx: **{signals_a.get('vulnerability_index','—')}**"
+        )
+    signals_line_b = ""
+    if signals_b:
+        signals_line_b = (
+            f"\n> 📊 *Batch signals for {ing_b}* — "
+            f"Agnes score: **{signals_b.get('agnes_score','—')}** | "
+            f"GPO eligible: **{signals_b.get('gpo_eligible','—')}** | "
+            f"Est. savings: **{signals_b.get('est_savings','—')}**"
+        )
+
+    cot_block = (
+        f"🧠 **Agnes Reasoning Trace**\n\n"
+        f"<details>\n<summary>▸ Step 1 — Compliance & Identity Check</summary>\n\n"
+        f"{compliance_reasoning}"
+        f"{signals_line_a}\n\n"
+        f"</details>\n\n"
+        f"<details>\n<summary>▸ Step 2 — Supply & Cost Analysis</summary>\n\n"
+        f"{supply_reasoning}"
+        f"{signals_line_b}\n\n"
+        f"</details>\n\n"
+    )
+
+    # ── Final decision card using _make_card() ────────────────────────────────
+    card_md = _make_card(
+        result=result,
+        source_labels=labels,
+        comp_b=comp_b,
+        auto_extracted=False,
+        ing_a=ing_a,
+        sup_a=sup_a or "Current Supplier",
+    )
+
+    out_md = base_summary + cot_block + "---\n" + card_md
 
     new_state = {
         "result": result, "docs": docs,
+        "all_results": [result],
         "ing_a": ing_a, "sup_a": sup_a or "Current Supplier",
         "comp_a": comp_a,
         "ing_b": ing_b, "sup_b": sup_b or "Proposed Supplier",
         "comp_b": comp_b, "labels": labels,
         "alt_count": 0,
-        "last_verdict": result.get("recommendation"),
+        "compliance_reasoning": compliance_reasoning,
+        "supply_reasoning": supply_reasoning,
+        "signals_a": signals_a,
+        "signals_b": signals_b,
     }
 
-    # Progress: Complete
-    progress(1.0, desc="Evaluation complete!")
-    
-    verdict = result.get("recommendation", "HUMAN_REVIEW_REQUIRED")
-    confidence = result.get("confidence", 0.0)
-    
-    # Log evaluation completion
-    session_logger.log_evaluation(
-        ingredient_a=ing_a,
-        ingredient_b=ing_b,
-        verdict=verdict,
-        confidence=confidence,
-        supplier_a=sup_a or "Current Supplier",
-        supplier_b=sup_b or "Proposed Supplier",
-        docs_retrieved=len(docs),
-    )
-    
-    card  = _make_card(result, labels, comp_b, auto_extracted=auto_extracted, ing_a=ing_a, sup_a=sup_a)
-    badge = _verdict_badge(verdict)
-    return (
-        card,
-        badge,
+    history[-1]["content"] = out_md
+
+    yield (
+        history, new_state,
         gr.update(interactive=True),
         gr.update(interactive=True),
         gr.update(interactive=True),
-        new_state,
+        gr.update(choices=["Original Recommendation"], value="Original Recommendation", visible=False),
     )
 
+_VERDICT_COLOR = {
+    "APPROVE":                  "#16a34a",
+    "APPROVE_WITH_CONDITIONS":  "#ca8a04",
+    "TRANSFER_ORDER":           "#2563eb",
+    "SPLIT_TO_PO":              "#7c3aed",
+    "SPLIT_PO":                 "#ea580c",
+    "FULL_REPLACE":             "#0891b2",
+    "REJECT":                   "#dc2626",
+    "HUMAN_REVIEW_REQUIRED":    "#6b7280",
+}
 
-def apply_handler(state):
+def _build_email_html(state: dict, r: dict) -> str:
+    verdict   = r.get("recommendation", "UNKNOWN")
+    conf      = r.get("confidence", 0.0)
+    reasoning = r.get("reasoning", "—")
+    color     = _VERDICT_COLOR.get(verdict, "#6b7280")
+    now       = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+
+    evidence_rows = "".join(
+        f"<li style='margin:4px 0;color:#374151'>{e}</li>"
+        for e in r.get("evidence_trail", [])
+    )
+    gap_rows = "".join(
+        f"<li style='margin:4px 0;color:#b91c1c'>{g}</li>"
+        for g in r.get("compliance_gaps", [])
+    )
+    option_rows = ""
+    for opt in r.get("decision_options", []):
+        option_rows += (
+            f"<tr>"
+            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb'><b>{opt.get('label','')}</b></td>"
+            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb'>{opt.get('detail','')}</td>"
+            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280'>{opt.get('risk','')}</td>"
+            f"<td style='padding:6px 12px;border-bottom:1px solid #e5e7eb'>{opt.get('confidence',0):.0%}</td>"
+            f"</tr>"
+        )
+
+    return f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;background:#f9fafb;padding:24px;margin:0">
+  <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+
+    <div style="background:{color};padding:20px 28px">
+      <h1 style="margin:0;color:#fff;font-size:1.25rem">Agnes Supply Chain Decision</h1>
+      <p style="margin:4px 0 0;color:rgba(255,255,255,.85);font-size:0.85rem">{now}</p>
+    </div>
+
+    <div style="padding:24px 28px">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+        <tr><td style="padding:6px 0;color:#6b7280;width:40%">Ingredient A (from)</td>
+            <td style="padding:6px 0;font-weight:600">{state.get('ing_a','—')} — {state.get('sup_a','—')}</td></tr>
+        <tr><td style="padding:6px 0;color:#6b7280">Ingredient B (to)</td>
+            <td style="padding:6px 0;font-weight:600">{state.get('ing_b','—')} — {state.get('sup_b','—')}</td></tr>
+        <tr><td style="padding:6px 0;color:#6b7280">Verdict</td>
+            <td style="padding:6px 0">
+              <span style="background:{color};color:#fff;padding:3px 10px;border-radius:20px;font-size:0.8rem;font-weight:700">{verdict}</span>
+            </td></tr>
+        <tr><td style="padding:6px 0;color:#6b7280">Confidence</td>
+            <td style="padding:6px 0;font-weight:600">{conf:.0%}</td></tr>
+      </table>
+
+      <h3 style="margin:0 0 8px;font-size:1rem;color:#111827">Reasoning</h3>
+      <p style="margin:0 0 20px;color:#374151;line-height:1.6">{reasoning}</p>
+
+      {"<h3 style='margin:0 0 8px;font-size:1rem;color:#111827'>Evidence Trail</h3><ul style='margin:0 0 20px;padding-left:20px'>" + evidence_rows + "</ul>" if evidence_rows else ""}
+      {"<h3 style='margin:0 0 8px;font-size:1rem;color:#b91c1c'>Compliance Gaps</h3><ul style='margin:0 0 20px;padding-left:20px'>" + gap_rows + "</ul>" if gap_rows else ""}
+
+      {"<h3 style='margin:0 0 8px;font-size:1rem;color:#111827'>Decision Options</h3><table style='width:100%;border-collapse:collapse;margin-bottom:20px;font-size:0.85rem'><thead><tr style='background:#f3f4f6'><th style='padding:8px 12px;text-align:left'>Option</th><th style='padding:8px 12px;text-align:left'>Detail</th><th style='padding:8px 12px;text-align:left'>Risk</th><th style='padding:8px 12px;text-align:left'>Confidence</th></tr></thead><tbody>" + option_rows + "</tbody></table>" if option_rows else ""}
+    </div>
+
+    <div style="background:#f3f4f6;padding:14px 28px;font-size:0.78rem;color:#6b7280">
+      This decision has been saved to KB/decisions.json and will inform future Agnes evaluations.
+      &nbsp;·&nbsp; Agnes 2.0 Supply Chain Intelligence
+    </div>
+  </div>
+</body>
+</html>"""
+
+
+def _send_decision_emails(state: dict, r: dict) -> tuple[bool, str]:
+    """
+    Send HTML decision notification to all configured recipients.
+    Returns (success, message).
+    """
+    if not _SMTP_USER or not _SMTP_PASS:
+        return False, "SMTP not configured (set SMTP_USER and SMTP_PASS in .env)"
+    if not _NOTIFY_EMAILS:
+        return False, "No recipients configured (set NOTIFICATION_EMAILS in .env)"
+
+    verdict = r.get("recommendation", "UNKNOWN")
+    ing_a   = state.get("ing_a", "?")
+    ing_b   = state.get("ing_b", "?")
+    subject = f"[Agnes] Decision: {verdict} — {ing_a} → {ing_b}"
+
+    html_body  = _build_email_html(state, r)
+    plain_body = (
+        f"Agnes Supply Chain Decision\n"
+        f"Ingredient A: {ing_a} ({state.get('sup_a','?')})\n"
+        f"Ingredient B: {ing_b} ({state.get('sup_b','?')})\n"
+        f"Verdict: {verdict}  |  Confidence: {r.get('confidence',0):.0%}\n\n"
+        f"Reasoning: {r.get('reasoning','')}\n\n"
+        f"This decision has been saved to KB/decisions.json."
+    )
+
+    sent_to: list[str] = []
+    failed:  list[str] = []
+
+    try:
+        with smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(_SMTP_USER, _SMTP_PASS)
+            for recipient in _NOTIFY_EMAILS:
+                try:
+                    msg = MIMEMultipart("alternative")
+                    msg["Subject"] = subject
+                    msg["From"]    = _SMTP_USER
+                    msg["To"]      = recipient
+                    msg.attach(MIMEText(plain_body, "plain"))
+                    msg.attach(MIMEText(html_body,  "html"))
+                    server.sendmail(_SMTP_USER, recipient, msg.as_string())
+                    sent_to.append(recipient)
+                except Exception as exc:
+                    failed.append(f"{recipient} ({exc})")
+    except Exception as exc:
+        return False, f"SMTP connection failed: {exc}"
+
+    if failed:
+        return len(sent_to) > 0, f"Sent to {sent_to}; failed: {failed}"
+    return True, f"Notified {len(sent_to)} recipient(s): {', '.join(sent_to)}"
+
+
+def apply_handler(state, selected_label=None):
     if not state:
         session_logger.warning("Apply attempted with no evaluation")
-        return "No evaluation to apply.", state, _load_history()
-    r = state["result"]
+        return _apply_notification("error", "No evaluation to apply."), state, _load_history(), gr.update()
+    all_results = state.get("all_results", [state["result"]])
+    if selected_label and selected_label.startswith("Alternative #"):
+        idx = int(selected_label.split("#")[1])
+    else:
+        idx = 0
+    r = all_results[idx] if idx < len(all_results) else all_results[-1]
     verdict = r.get("recommendation", "")
-    
+
     session_logger.info("Decision applied by user", extra={
         "ingredient_a": state["ing_a"],
         "ingredient_b": state["ing_b"],
         "verdict": verdict,
         "confidence": r.get("confidence", 0.0),
     })
-    
+
     store_decision({
-        "ingredient_a":    state["ing_a"],
-        "ingredient_b":    state["ing_b"],
-        "supplier_a":      state["sup_a"],
-        "supplier_b":      state["sup_b"],
-        "grade_a":         state["comp_a"].get("grade", ""),
-        "grade_b":         state["comp_b"].get("grade", ""),
+        "ingredient_a":     state["ing_a"],
+        "ingredient_b":     state["ing_b"],
+        "supplier_a":       state["sup_a"],
+        "supplier_b":       state["sup_b"],
+        "grade_a":          state["comp_a"].get("grade", ""),
+        "grade_b":          state["comp_b"].get("grade", ""),
         "certifications_a": state["comp_a"].get("certifications", []),
         "certifications_b": state["comp_b"].get("certifications", []),
-        "verdict":         r.get("recommendation", ""),
-        "confidence":      r.get("confidence", 0.0),
-        "reasoning":       r.get("reasoning", "")[:400],
-        "evidence_trail":  r.get("evidence_trail", []),
-        "sources_cited":   r.get("sources_cited", []),
+        "verdict":          r.get("recommendation", ""),
+        "confidence":       r.get("confidence", 0.0),
+        "reasoning":        r.get("reasoning", "")[:400],
+        "evidence_trail":   r.get("evidence_trail", []),
+        "sources_cited":    r.get("sources_cited", []),
     })
+
+    email_ok, email_msg = _send_decision_emails(state, r)
+    color = _VERDICT_COLOR.get(verdict, "#6b7280")
+
+    if email_ok:
+        notification = _apply_notification("success", verdict, color, email_msg, state, r)
+    elif _SMTP_USER:
+        notification = _apply_notification("warn", verdict, color, email_msg, state, r)
+    else:
+        notification = _apply_notification("saved", verdict, color, None, state, r)
+
+    selector_reset = gr.update(visible=False, choices=[], value=None)
+    return notification, None, _load_history(), selector_reset
+
+
+def _apply_notification(
+    kind: str,
+    verdict: str,
+    color: str = "#6b7280",
+    email_msg: str | None = None,
+    state: dict | None = None,
+    r: dict | None = None,
+) -> str:
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    if kind == "error":
+        return (
+            "<div style='background:#fef2f2;border:1px solid #fecaca;border-radius:10px;"
+            "padding:16px 20px;margin-top:12px'>"
+            "<span style='color:#dc2626;font-weight:700'>❌ Error</span> "
+            f"<span style='color:#7f1d1d'>{verdict}</span></div>"
+        )
+
+    ing_a = state.get("ing_a", "?") if state else "?"
+    sup_a = state.get("sup_a", "?") if state else "?"
+    ing_b = state.get("ing_b", "?") if state else "?"
+    sup_b = state.get("sup_b", "?") if state else "?"
+    conf  = r.get("confidence", 0.0) if r else 0.0
+
+    if kind == "success":
+        icon, bg, border, title_color = "✅", "#f0fdf4", "#bbf7d0", "#15803d"
+        email_line = f"<br><span style='color:#16a34a'>📧 Emails sent — {email_msg}</span>"
+    elif kind == "warn":
+        icon, bg, border, title_color = "⚠️", "#fffbeb", "#fde68a", "#92400e"
+        email_line = f"<br><span style='color:#b45309'>📧 Email partial/failed — {email_msg}</span>"
+    else:
+        icon, bg, border, title_color = "💾", "#eff6ff", "#bfdbfe", "#1e40af"
+        email_line = "<br><span style='color:#6b7280'>📧 Email not configured — set SMTP_USER &amp; NOTIFICATION_EMAILS in .env to enable</span>"
+
     return (
-        f"**Decision saved** — `{verdict}` stored in KB/decisions.json.",
-        None,
-        _load_history(),
+        f"<div style='background:{bg};border:1px solid {border};border-radius:10px;"
+        f"padding:16px 20px;margin-top:12px;line-height:1.7'>"
+        f"<div style='font-weight:700;font-size:1rem;color:{title_color}'>"
+        f"{icon} Decision Saved &amp; Parties Notified</div>"
+        f"<div style='margin-top:6px;font-size:0.88rem;color:#374151'>"
+        f"<b>Verdict:</b> <span style='background:{color};color:#fff;padding:2px 9px;"
+        f"border-radius:20px;font-size:0.78rem;font-weight:700'>{verdict}</span>"
+        f"&nbsp; <b>Confidence:</b> {conf:.0%} &nbsp; <b>Saved:</b> {now}<br>"
+        f"<b>From:</b> {ing_a} ({sup_a})<br>"
+        f"<b>To:</b> {ing_b} ({sup_b})"
+        f"{email_line}"
+        f"</div></div>"
     )
 
 
-def alternative_handler(state):
+def alternative_handler(history, state):
     if not state:
         session_logger.warning("Alternative requested with no evaluation")
-        return "Submit an evaluation first.", state
-    
+        history.append({"role": "assistant", "content": "Submit an evaluation first."})
+        return history, state, gr.update()
+
     if state["alt_count"] >= 3:
-        session_logger.info("Maximum alternatives reached", extra={
-            "alt_count": state["alt_count"],
-            "ingredient_a": state["ing_a"],
-            "ingredient_b": state["ing_b"],
-        })
-        return "**No more alternatives** — maximum 3 alternatives reached. Please apply or reject.", state
-    
+        history.append({"role": "assistant", "content": "**No more alternatives** — maximum 3 alternatives reached. Please apply or reject."})
+        return history, state, gr.update()
+
     alt_num = state["alt_count"] + 1
     last_verdict = state.get("last_verdict")
-    
+
     session_logger.info(f"Generating alternative #{alt_num}", extra={
         "alt_num": alt_num,
         "ingredient_a": state["ing_a"],
@@ -1418,18 +1897,27 @@ def alternative_handler(state):
         "previous_verdict": last_verdict,
     })
 
-    result, docs = _evaluate(
+    result, docs, _cr, _sr = _evaluate(
         state["ing_a"], state["sup_a"], state["comp_a"],
         state["ing_b"], state["sup_b"], state["comp_b"],
         temperature=0.4 + alt_num * 0.1,
         exclude_verdict=last_verdict,
+        signals_a=state.get("signals_a", {}),
+        signals_b=state.get("signals_b", {}),
     )
 
-    new_state = {**state, "result": result, "docs": docs,
-                 "alt_count": alt_num, "last_verdict": result.get("recommendation")}
+    all_results = state.get("all_results", [state["result"]]) + [result]
+    new_state = {
+        **state,
+        "result":      result,
+        "docs":        docs,
+        "all_results": all_results,
+        "alt_count":   alt_num,
+        "last_verdict": result.get("recommendation"),
+    }
     verdict = result.get("recommendation", "HUMAN_REVIEW_REQUIRED")
     confidence = result.get("confidence", 0.0)
-    
+
     session_logger.log_evaluation(
         ingredient_a=state["ing_a"],
         ingredient_b=state["ing_b"],
@@ -1440,16 +1928,27 @@ def alternative_handler(state):
         is_alternative=True,
         alt_num=alt_num,
     )
-    
-    card  = _make_card(result, state["labels"], state["comp_b"], alt_num=alt_num)
-    badge = _verdict_badge(verdict)
-    return card, badge, new_state
 
+    out_md = _make_card(
+        result=result,
+        source_labels=state.get("labels", []),
+        comp_b=state["comp_b"],
+        alt_num=alt_num,
+        ing_a=state["ing_a"],
+        sup_a=state["sup_a"],
+    )
+
+    selector_labels = ["Original Recommendation"] + [f"Alternative #{i}" for i in range(1, alt_num + 1)]
+    history.append({"role": "assistant", "content": out_md})
+    return (
+        history, new_state,
+        gr.update(choices=selector_labels, value=selector_labels[-1], visible=True),
+    )
 
 def reject_handler(state):
     if not state:
         session_logger.warning("Reject attempted with no evaluation")
-        return "No evaluation to reject.", state, _load_history()
+        return "<div style='color:#dc2626;padding:10px'>No evaluation to reject.</div>", state, _load_history(), gr.update()
     
     session_logger.info("Decision rejected by user", extra={
         "ingredient_a": state["ing_a"],
@@ -1473,7 +1972,16 @@ def reject_handler(state):
         "evidence_trail":  [],
         "sources_cited":   [],
     })
-    return "**Rejected** — stored in KB/decisions.json.", None, _load_history()
+    return (
+        "<div style='background:#fef2f2;border:1px solid #fecaca;border-radius:10px;"
+        "padding:14px 20px;margin-top:12px;font-size:0.88rem'>"
+        "<span style='color:#dc2626;font-weight:700'>🚫 Rejected</span> — "
+        "<span style='color:#7f1d1d'>All recommendations dismissed. Decision stored in KB/decisions.json.</span>"
+        "</div>",
+        None,
+        _load_history(),
+        gr.update(visible=False, choices=[], value=None),
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1591,19 +2099,37 @@ def _build_charts(stats: dict):
     return fig1, fig2
 
 
-def _build_abbreviations_html() -> str:
+def _build_abbreviations_html(text: str = "") -> str:
+    """Build abbreviations reference filtered to those appearing in `text`."""
+    import re
+    if text:
+        matched = [
+            (abbr, full, desc) for abbr, full, desc in ABBREVIATIONS
+            if re.search(rf'\b{re.escape(abbr)}\b', text)
+        ]
+    else:
+        matched = list(ABBREVIATIONS)
+    if not matched:
+        return ""
     rows = "".join(
-        f"<tr>"
-        f"<td style='padding:6px 14px 6px 0;font-weight:700;color:#38bdf8;white-space:nowrap'>{abbr}</td>"
-        f"<td style='padding:6px 14px 6px 0;color:#e2e8f0;white-space:nowrap'>{full}</td>"
-        f"<td style='padding:6px 0;color:#94a3b8;font-size:0.85rem'>{desc}</td>"
+        f"<tr style='background:{'#f8fafc' if i % 2 == 0 else '#ffffff'};border-bottom:1px solid #e9eef6'>"
+        f"<td style='padding:8px 14px 8px 12px;font-weight:700;color:#1e40af;white-space:nowrap;"
+        f"font-family:\"Fira Code\",ui-monospace,monospace;font-size:0.82rem;letter-spacing:.02em'>{abbr}</td>"
+        f"<td style='padding:8px 16px 8px 0;color:#1e293b;white-space:nowrap;font-weight:500;font-size:0.85rem'>{full}</td>"
+        f"<td style='padding:8px 12px 8px 0;color:#64748b;font-size:0.82rem;line-height:1.55'>{desc}</td>"
         f"</tr>"
-        for abbr, full, desc in ABBREVIATIONS
+        for i, (abbr, full, desc) in enumerate(matched)
     )
     return (
-        "<div style='margin-top:2rem;border-top:1px solid #334155;padding-top:1.5rem'>"
-        "<p style='font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;"
-        "color:#64748b;margin-bottom:.75rem'>Abbreviations Reference</p>"
+        "<div style='margin-top:2rem;border-radius:10px;overflow:hidden;"
+        "border:1px solid #dbeafe;box-shadow:0 1px 4px rgba(30,64,175,0.06)'>"
+        "<div style='background:linear-gradient(90deg,#1e40af 0%,#1d4ed8 100%);"
+        "padding:10px 16px;display:flex;align-items:center;gap:10px'>"
+        "<span style='font-size:0.68rem;text-transform:uppercase;letter-spacing:.12em;"
+        "color:#bfdbfe;font-weight:700'>Abbreviations used in this report</span>"
+        "<span style='margin-left:auto;background:#d97706;color:#fff;font-size:0.65rem;"
+        f"font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:.05em'>{len(matched)} terms</span>"
+        "</div>"
         f"<table style='width:100%;border-collapse:collapse'>{rows}</table>"
         "</div>"
     )
@@ -1617,17 +2143,19 @@ def _build_kpi_html(stats: dict) -> str:
         ("🔗", stats["n_bom_links"],    "BOM Component Links"),
     ]
     items = "".join(
-        f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;'
-        f'padding:18px;text-align:center">'
-        f'<div style="font-size:1.8rem">{icon}</div>'
-        f'<div style="font-size:2rem;font-weight:bold;color:#1e40af">{num}</div>'
-        f'<div style="font-size:0.82rem;color:#64748b;margin-top:4px">{label}</div>'
+        f'<div style="background:linear-gradient(135deg,#eff6ff 0%,#f0f9ff 100%);'
+        f'border:1px solid #bfdbfe;border-radius:12px;padding:20px 16px;text-align:center;'
+        f'box-shadow:0 2px 8px rgba(37,99,235,0.07)">'
+        f'<div style="font-size:2rem;margin-bottom:6px">{icon}</div>'
+        f'<div style="font-size:2.1rem;font-weight:800;color:#1d4ed8;line-height:1">{num}</div>'
+        f'<div style="font-size:0.75rem;color:#64748b;margin-top:6px;text-transform:uppercase;'
+        f'letter-spacing:.06em;font-weight:600">{label}</div>'
         f'</div>'
         for icon, num, label in cards
     )
     return (
         f'<div style="display:grid;grid-template-columns:repeat(4,1fr);'
-        f'gap:12px;margin-bottom:8px">{items}</div>'
+        f'gap:14px;margin-bottom:12px">{items}</div>'
     )
 
 
@@ -1702,12 +2230,13 @@ def assessment_handler():
         stats = _load_db_stats()
     except Exception as exc:
         err = f"**Database error:** {exc}"
-        return err, None, None, err
+        return err, None, None, err, ""
     kpi_html   = _build_kpi_html(stats)
     fig1, fig2 = _build_charts(stats)
     report     = _generate_health_report(stats)
     report_md  = _render_health_card(report, stats)
-    return kpi_html, fig1, fig2, report_md
+    abbrev_html = _build_abbreviations_html(report_md)
+    return kpi_html, fig1, fig2, report_md, abbrev_html
 
 
 def _history_stats_html() -> str:
@@ -1837,6 +2366,28 @@ footer { display: none !important; }
 
 /* ── Parse badge ── */
 .parse-status { display: flex; align-items: center; min-height: 34px; }
+
+/* ── Primary button: enforce white text (beats Svelte scoped specificity) ── */
+button.primary { color: #ffffff !important; }
+button.lg.primary { color: #ffffff !important; }
+.gradio-container button.primary,
+.gradio-container button.lg.primary {
+  color: #ffffff !important;
+  background-color: #2563eb !important;
+}
+
+/* ── Fixed Height Chat Layout ── */
+#agnes-chatbot { 
+  height: calc(100vh - 350px) !important; 
+  min-height: 300px !important; 
+  flex-grow: 0 !important; 
+}
+#chat-input { margin-top: 10px !important; }
+
+/* Remove aggressive overflow hiding to prevent cutting off the input */
+body { overflow: auto !important; }
+.gradio-container { overflow: auto !important; }
+#chat-tab { height: auto !important; }
 """
 
 with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
@@ -1867,146 +2418,55 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
     with gr.Tabs(elem_classes=["tab-nav"]):
 
         # ══════════════════════════════════════════════════════════════════
-        # TAB 1 — Evaluate Substitution
+        # TAB 1 — Evaluate Substitution (Chat Interface)
         # ══════════════════════════════════════════════════════════════════
-        with gr.TabItem("🔍  Evaluate Substitution"):
-            with gr.Row():
-                # ── Left: inputs ─────────────────────────────────────────
-                with gr.Column(scale=1):
+        with gr.TabItem("🔍  Evaluate Substitution", elem_id="chat-tab"):
+            with gr.Column(elem_id="chat-container"):
+                chatbot = gr.Chatbot(
+                    label="Agnes Supply Chain Evaluator",
+                    elem_id="agnes-chatbot",
+                    scale=1,
+                )
+                chat_input = gr.MultimodalTextbox(
+                    placeholder="Describe the supply chain scenario, shortage, or paste an alert...",
+                    interactive=True,
+                    show_label=False,
+                    file_types=["image", "pdf", "audio", "video"],
+                    elem_id="chat-input"
+                )
+                
+                with gr.Row(elem_classes=["action-row"]):
+                    apply_btn  = gr.Button("Apply & Save",     variant="primary",   interactive=False)
+                    alt_btn    = gr.Button("Show Alternative", variant="secondary",  interactive=False)
+                    reject_btn = gr.Button("Reject All",       variant="stop",       interactive=False)
 
-                    # ── Task 1: Email paste / parse ───────────────────────
-                    gr.HTML('<p class="section-label">Shortage Alert or Email</p>')
-                    email_text = gr.Textbox(
-                        label="Paste email / shortage alert",
-                        placeholder=(
-                            "Paste the full email, shortage alert, or supplier notice here…\n\n"
-                            "Agnes will extract the ingredient and supplier automatically."
-                        ),
-                        lines=4,
-                    )
-                    with gr.Row():
-                        parse_btn = gr.Button("Parse Email", variant="primary", size="sm")
-                        parse_badge = gr.HTML(
-                            '<div class="parse-status" style="color:#94a3b8;font-size:0.82rem">'
-                            'Paste email text and click Parse.</div>'
-                        )
+                recommendation_selector = gr.Radio(
+                    choices=[],
+                    label="Which recommendation do you want to apply?",
+                    visible=False,
+                    value=None,
+                    interactive=True,
+                )
 
-                    # ── Task 2: Ingredient A (auto-filled or manual) ──────
-                    with gr.Accordion("Ingredient Details — review or enter manually", open=True):
-                        gr.HTML('<p class="section-label">Ingredient A — Current baseline</p>')
-                        with gr.Row():
-                            ing_a = gr.Textbox(label="Ingredient name",
-                                               placeholder="vitamin-d3-cholecalciferol")
-                            sup_a = gr.Textbox(label="Current supplier",
-                                               placeholder="Prinova USA")
-
-                        gr.HTML(
-                            '<p class="section-label" style="margin-top:16px">Ingredient B — Proposed substitute'
-                            '<span style="font-weight:400;text-transform:none;letter-spacing:0;'
-                            'font-size:0.75rem;color:#94a3b8;margin-left:6px">'
-                            '(optional — Agnes finds one automatically if left blank)</span></p>'
-                        )
-                        with gr.Row():
-                            ing_b = gr.Textbox(label="Ingredient B name (optional)",
-                                               placeholder="Leave blank for auto-discovery")
-                            sup_b = gr.Textbox(label="Proposed supplier (optional)",
-                                               placeholder="Leave blank for auto-discovery")
-
-                    # ── Partial Supply + PO vs TO inputs ─────────────────
-                    with gr.Accordion("Supply Scenario — PO vs Transfer Order (optional)", open=False):
-                        gr.HTML(
-                            '<p style="font-size:0.8rem;color:#64748b;margin:0 0 12px">'
-                            'Provide quantity and cost data for Agnes to recommend '
-                            '<strong>Split PO</strong>, <strong>Full Replace</strong>, '
-                            '<strong>Transfer Order</strong>, or <strong>Split TO+PO</strong>.</p>'
-                        )
-                        gr.HTML('<p class="section-label">Quantity</p>')
-                        with gr.Row():
-                            needed_qty_input    = gr.Textbox(label="Required quantity", placeholder="500")
-                            supplier_qty_input  = gr.Textbox(label="Supplier can provide", placeholder="250")
-                            unit_input          = gr.Textbox(label="Unit", placeholder="kg", value="kg")
-
-                        gr.HTML('<p class="section-label" style="margin-top:14px">External Purchase Order (PO)</p>')
-                        with gr.Row():
-                            po_cost_input  = gr.Textbox(label="PO total landed cost ($)", placeholder="5000")
-                            po_lead_input  = gr.Textbox(label="PO lead time (days)", placeholder="14")
-
-                        gr.HTML('<p class="section-label" style="margin-top:14px">Internal Transfer Order (TO) — optional</p>')
-                        with gr.Row():
-                            branch_name_input   = gr.Textbox(label="Branch / warehouse name", placeholder="East Coast DC")
-                            branch_stock_input  = gr.Textbox(label="Branch current stock", placeholder="1000")
-                            branch_safety_input = gr.Textbox(label="Safety stock limit", placeholder="200")
-                        with gr.Row():
-                            to_freight_input    = gr.Textbox(label="Internal freight cost ($)", placeholder="800")
-                            to_lead_input       = gr.Textbox(label="TO lead time (days)", placeholder="3")
-                            factory_buffer_input = gr.Textbox(label="Factory buffer (days)", placeholder="0")
-
-                    # ── Task 3: Sleek supporting evidence accordion ────────
-                    with gr.Accordion("Supporting Evidence (all optional)", open=False):
-                        with gr.Tabs(elem_classes=["inner-tabs"]):
-                            with gr.TabItem("📝 Notes & URLs"):
-                                notes = gr.Textbox(
-                                    label="Notes / URLs",
-                                    placeholder=(
-                                        "Free-form notes, or paste URLs:\n"
-                                        "https://supplier.com/product-page\n"
-                                        "https://example.com/coa.pdf"
-                                    ),
-                                    lines=3,
-                                )
-                                url_status = gr.HTML(
-                                    '<div style="color:#94a3b8;font-size:0.85rem;padding:4px 0">'
-                                    'URLs detected: 0</div>',
-                                )
-                                with gr.Row():
-                                    detect_btn = gr.Button("🔍 Detect URLs", size="sm", variant="secondary")
-                                    fetch_btn  = gr.Button("📥 Fetch Details", size="sm", variant="primary", interactive=False)
-                                fetch_status = gr.HTML(visible=False)
-
-                            with gr.TabItem("📄 Documents"):
-                                with gr.Row():
-                                    coa_image = gr.Image(label="CoA Image (PNG/JPG)", type="filepath")
-                                    pdf_file  = gr.File(label="PDF Document", file_types=[".pdf"])
-
-                            with gr.TabItem("🎙 Media"):
-                                with gr.Row():
-                                    audio_file = gr.Audio(label="Audio Note (MP3/WAV)", type="filepath")
-                                    video_file = gr.Video(label="Video (facility/demo)")
-
-                        detected_urls_state = gr.State([])
-
-                    evaluate_btn = gr.Button("Evaluate", variant="primary", size="lg", elem_classes=["eval-btn"])
-
-                # ── Right: outputs ────────────────────────────────────────
-                with gr.Column(scale=1):
-                    gr.HTML('<p class="section-label">Agnes Recommendation</p>')
-                    verdict_badge = gr.HTML(
-                        '<div style="color:#94a3b8;font-size:0.85rem;padding:8px 0;'
-                        'font-weight:500">Awaiting evaluation…</div>'
-                    )
-                    result_md = gr.Markdown(
-                        "*Enter an ingredient name or upload a document, then click Evaluate.*",
-                        elem_classes=["recommendation-card"],
-                    )
-                    with gr.Row(elem_classes=["action-row"]):
-                        apply_btn  = gr.Button("Apply & Save",     variant="primary",   interactive=False)
-                        alt_btn    = gr.Button("Show Alternative", variant="secondary",  interactive=False)
-                        reject_btn = gr.Button("Reject All",       variant="stop",       interactive=False)
-                    status_md = gr.Markdown("")
+                status_md = gr.HTML("")
 
         # ══════════════════════════════════════════════════════════════════
         # TAB 2 — General Assessment
         # ══════════════════════════════════════════════════════════════════
         with gr.TabItem("📊  General Assessment"):
-            gr.Markdown(
+            gr.HTML(
+                "<div style='padding:12px 0 4px'>"
+                "<p style='color:#64748b;font-size:0.92rem;margin:0;line-height:1.6'>"
                 "Run a full supply chain health check powered by live DB analytics and "
-                "Gemini AI — no inputs required."
+                "<strong style='color:#2563eb'>Gemini AI</strong> — no inputs required."
+                "</p></div>"
             )
             assess_btn = gr.Button("🚀 Run General Assessment", variant="primary", size="lg")
 
             kpi_html = gr.HTML(
-                '<div style="color:#94a3b8;font-size:0.9rem;padding:12px 0">'
-                'Click the button above to analyse the supply chain database.</div>'
+                '<div style="color:#94a3b8;font-size:0.88rem;padding:16px 0;text-align:center;'
+                'border:1px dashed #cbd5e1;border-radius:10px;margin-top:8px">'
+                '⬆️ Click the button above to analyse the supply chain database.</div>'
             )
 
             with gr.Row():
@@ -2015,7 +2475,7 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
 
             health_md = gr.Markdown("")
 
-            gr.HTML(_build_abbreviations_html())
+            abbrev_html = gr.HTML("")
 
         # ══════════════════════════════════════════════════════════════════
         # TAB 3 — Decision History
@@ -2148,62 +2608,40 @@ with gr.Blocks(title="Agnes 2.0 — Supply Chain Intelligence") as demo:
                     )
 
     # ── Wire up handlers ──────────────────────────────────────────────────
-    
-    # URL detection handlers
-    detect_btn.click(
-        fn=detect_urls,
-        inputs=[notes],
-        outputs=[url_status, detected_urls_state],
+
+    chat_input.submit(
+        fn=add_message,
+        inputs=[chatbot, chat_input],
+        outputs=[chatbot, chat_input]
     ).then(
-        fn=lambda urls: gr.update(interactive=bool(urls)),
-        inputs=[detected_urls_state],
-        outputs=[fetch_btn],
-    )
-    
-    fetch_btn.click(
-        fn=fetch_url_details,
-        inputs=[detected_urls_state],
-        outputs=[fetch_status, gr.State()],  # State stores results for later use
-    )
-    
-    # Email parse handler
-    parse_btn.click(
-        fn=_parse_email,
-        inputs=[email_text],
-        outputs=[ing_a, sup_a, parse_badge],
+        fn=chat_evaluate_handler,
+        inputs=[chatbot, eval_state],
+        outputs=[chatbot, eval_state, apply_btn, alt_btn, reject_btn, recommendation_selector]
+    ).then(
+        fn=lambda: gr.MultimodalTextbox(interactive=True),
+        inputs=None,
+        outputs=[chat_input]
     )
 
-    evaluate_btn.click(
-        fn=submit_handler,
-        inputs=[
-            ing_a, sup_a, ing_b, sup_b,
-            needed_qty_input, supplier_qty_input, unit_input,
-            po_cost_input, po_lead_input,
-            branch_name_input, branch_stock_input, branch_safety_input,
-            to_freight_input, to_lead_input, factory_buffer_input,
-            notes, coa_image, audio_file, video_file, pdf_file, eval_state,
-        ],
-        outputs=[result_md, verdict_badge, apply_btn, alt_btn, reject_btn, eval_state],
-    )
     apply_btn.click(
         fn=apply_handler,
-        inputs=[eval_state],
-        outputs=[status_md, eval_state, history_table],
+        inputs=[eval_state, recommendation_selector],
+        outputs=[status_md, eval_state, history_table, recommendation_selector],
     )
     alt_btn.click(
         fn=alternative_handler,
-        inputs=[eval_state],
-        outputs=[result_md, verdict_badge, eval_state],
+        inputs=[chatbot, eval_state],
+        outputs=[chatbot, eval_state, recommendation_selector],
     )
     reject_btn.click(
         fn=reject_handler,
         inputs=[eval_state],
-        outputs=[status_md, eval_state, history_table],
+        outputs=[status_md, eval_state, history_table, recommendation_selector],
     )
     assess_btn.click(
         fn=assessment_handler,
         inputs=[],
-        outputs=[kpi_html, chart1, chart2, health_md],
+        outputs=[kpi_html, chart1, chart2, health_md, abbrev_html],
     )
     refresh_btn.click(
         fn=lambda: (_history_stats_html(), _load_history()),

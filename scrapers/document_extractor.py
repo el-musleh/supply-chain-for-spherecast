@@ -243,7 +243,7 @@ Respond with valid JSON only — no markdown fences, no explanations."""
             
             response = self.client.models.generate_content(
                 model=self.model,
-                contents=[part, types.Part.from_text(self._EXTRACTION_PROMPT)],
+                contents=[part, types.Part.from_text(text=self._EXTRACTION_PROMPT)],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     temperature=self.temperature,

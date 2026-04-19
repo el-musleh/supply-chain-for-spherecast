@@ -321,5 +321,43 @@
       }
     ],
     "stored_at": "2026-04-18T13:03:52.545823"
+  },
+  {
+    "ingredient_a": "SKU-13, SKU-1, SKU-2, SKU-3, SKU-7",
+    "ingredient_b": "SKU-13, SKU-1, SKU-2, SKU-3, SKU-7",
+    "supplier_a": "Current Supplier",
+    "supplier_b": "Prinova",
+    "grade_a": null,
+    "grade_b": null,
+    "certifications_a": [],
+    "certifications_b": [],
+    "verdict": "HUMAN_REVIEW_REQUIRED",
+    "confidence": 0.95,
+    "reasoning": "The substitution is currently invalid because both the current and proposed sources fail to meet the basic regulatory and quality standards required for dietary supplement manufacturing under 21 CFR Part 111. Moving from one non-compliant source to another provides no risk mitigation, and the lack of chemical identity for the SKUs makes functional equivalence impossible to verify. A 'blind' substi",
+    "evidence_trail": [
+      "Both ingredients lack a defined chemical identity, CAS number, or botanical name, relying solely on internal SKU codes SKU-13, 1, 2, 3, and 7.",
+      "Both sources are listed with a grade of 'None', which fails to meet 21 CFR Part 111 requirements for established specifications for identity, purity, and strength [3].",
+      "Both suppliers are marked as not FDA registered (FDA reg: False), increasing the risk of adulteration findings under FDA regulations [2].",
+      "There is a total absence of quality certifications (GMP, Non-GMO, USP) for both the current and proposed sources, preventing compliance with 'Clean Label' or safety standards.",
+      "The proposed move to Prinova is a lateral transfer with no improvement in compliance, quality grade, or lead time (both 14 days)."
+    ],
+    "sources_cited": [
+      {
+        "id": "fda-ds-guidance",
+        "source": "U.S. FDA",
+        "title": "FDA Dietary Supplement Questions and Answers"
+      },
+      {
+        "id": "fda-adulteration",
+        "source": "U.S. FDA",
+        "title": "FDA — Adulteration of Dietary Supplements and cGMP Compliance"
+      },
+      {
+        "id": "gmp-iso-22716",
+        "source": "U.S. FDA",
+        "title": "GMP (Good Manufacturing Practice) — Overview and Requirements"
+      }
+    ],
+    "stored_at": "2026-04-19T09:48:19.770396"
   }
 ]

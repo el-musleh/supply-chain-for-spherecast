@@ -2,6 +2,7 @@
 # You can generate this by running 'pip freeze > requirements.txt' from your working environment.
 jupyter
 ipywidgets
+pandas
 google-genai>=1.73.1
 pulp>=3.0.0
 scipy>=1.10.0
